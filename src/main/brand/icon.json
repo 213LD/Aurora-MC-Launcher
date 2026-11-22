@@ -1,0 +1,14 @@
+{
+  "from": "docs/brand/aml-mark.svg",
+  "sha256": "99aa6174df25ed21b2522bead89e29a4558109b1c934e8ce5a3f554e8cc80c41",
+  "sizes": [
+    16,
+    20,
+    24,
+    32,
+    40,
+    48,
+    64,
+    256
+  ]
+}

@@ -1,0 +1,74 @@
+{
+  "name": "aurora-launcher",
+  "productName": "Aurora MC Launcher",
+  "version": "1.1.1",
+  "description": "一个美观、功能完整的 Minecraft Java 版启动器",
+  "main": "src/main/main.js",
+  "author": "213LD",
+  "license": "GPL-3.0-or-later",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "icon": "node scripts/build-icon.js",
+    "icons": "electron scripts/brand-icons.js",
+    "dist": "node scripts/build-icon.js && electron-builder --win --x64",
+    "test": "node scripts/regress/run.js",
+    "test:tr": "node scripts/regress/ui.js translate,tr-names,tr-matrix,tr-crawl,zh-mod-names,lang-system,lang-disabled,one-notice,launch-twice",
+    "test:changed": "node scripts/regress/run.js --changed",
+    "test:snapshot": "node scripts/regress/ui-snapshot.js",
+    "test:full": "node scripts/regress/run.js --full",
+    "test:layers": "node scripts/layer-check.js --list",
+    "test:pitfalls": "node scripts/pitfall-check.js",
+    "test:robust": "node scripts/regress/run.js --only=none --robust",
+    "test:coverage": "node scripts/regress/coverage.js",
+    "test:contract": "node scripts/regress/contract.js",
+    "test:walk": "node scripts/regress/walk.js",
+    "test:perf": "node scripts/regress/perf.js",
+    "test:real": "node scripts/regress/run.js --real --only=save,modes,sync,crash,ygg,ms,fabric,forge,neoforge,optifine,forgecn,shader,old,pack,planner",
+    "test:experience": "node scripts/regress/experience.js"
+  },
+  "devDependencies": {
+    "electron": "^44.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "dev.aurora.mclauncher",
+    "productName": "Aurora MC Launcher",
+    "copyright": "Copyright © 2026 213LD · GPL-3.0-or-later",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "electronLanguages": [
+      "zh-CN",
+      "en-US"
+    ],
+    "files": [
+      "src/**/*",
+      "!src/main/devshot.js",
+      "package.json",
+      "LICENSE"
+    ],
+    "extraFiles": [
+      {
+        "from": "build/免责声明.txt",
+        "to": "免责声明.txt"
+      },
+      {
+        "from": "LICENSE",
+        "to": "LICENSE.txt"
+      }
+    ],
+    "win": {
+      "target": [
+        "portable"
+      ],
+      "icon": "build/icon.ico"
+    },
+    "portable": {
+      "artifactName": "Aurora-MC-Launcher-${version}-Portable.${ext}"
+    }
+  },
+  "auroraEdition": "public"
+}

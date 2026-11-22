@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark" data-accent="aurora">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob: https: file:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self' data:; connect-src 'self'; media-src 'none'; object-src 'none'; frame-src 'none'">
+  <title></title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/styles/pixel.css">
+  <link rel="stylesheet" href="css/styles/compact.css">
+</head>
+<body>
+  <div id="app">
+    <aside class="sidebar">
+      <div class="brand drag">
+        <img id="brandLogo" alt="">
+        <div>
+          <div class="brand-name"><span id="brandName"></span></div>
+          <div class="brand-sub" id="brandSub"></div>
+        </div>
+      </div>
+      <nav id="nav"></nav>
+      <button class="side-toggle" id="sideToggle"></button>
+      <div class="sidebar-foot" id="sideAccount"></div>
+    </aside>
+
+    <main class="main">
+      <header class="titlebar drag">
+        <button class="tb-btn tb-back hidden" id="btnBack"></button>
+        <div class="crumb" id="crumb"></div>
+        <div class="title-right">
+          <div class="music-cap" id="btnMusic" data-simple-off></div>
+          <button class="tb-btn sound-btn" id="btnSound" type="button" data-simple-off></button>
+          <button class="tb-btn tb-lang" id="btnLang" data-no-tr></button>
+          <button class="tb-btn" id="btnLogs" title="游戏日志"></button>
+          <button class="tb-btn" id="btnBell" title="通知"></button>
+          <button class="tb-btn" id="btnRun" title="运行中的任务（启动、测试、一键 Debug）"></button>
+          <button class="tb-btn" id="btnTasks" title="下载任务" data-simple-off></button>
+          <div class="win-ctrls">
+            <button data-win="min" title="最小化"></button>
+            <button data-win="max" title="最大化"></button>
+            <button data-win="close" class="close" title="关闭"></button>
+          </div>
+        </div>
+      </header>
+      <section class="pages" id="pages">
+        <div class="page" id="page-home"></div>
+        <div class="page" id="page-versions"></div>
+        <div class="page" id="page-download"></div>
+        <div class="page" id="page-mods"></div>
+        <div class="page" id="page-planner"></div>
+        <div class="page" id="page-repair"></div>
+        <div class="page" id="page-tasks"></div>
+        <div class="page" id="page-logs"></div>
+        <div class="page" id="page-java"></div>
+        <div class="page" id="page-accounts"></div>
+        <div class="page" id="page-skins"></div>
+        <div class="page" id="page-settings"></div>
+      </section>
+    </main>
+  </div>
+
+  <div class="log-drawer" id="logDrawer"></div>
+  <div id="toastRoot" aria-live="polite"></div>
+  <div class="drop-overlay" id="dropOverlay"></div>
+
+  <script src="../shared/brand.js"></script>
+  <script src="../shared/edition.js"></script>
+  <script src="../shared/mcver.js"></script>
+  <script src="../shared/pathrules.js"></script>
+  <script src="../shared/i18n/zh-CN.js"></script>
+  <script src="../shared/i18n/en.js"></script>
+  <script src="../shared/i18n/index.js"></script>
+  <script src="js/base/translate-load.js"></script>
+  <script src="js/base/translate.js"></script>
+  <script src="js/base/core.js"></script>
+  <script src="js/base/ui.js"></script>
+  <script src="js/notifcenter.js"></script>
+  <script src="js/debugkey.js"></script>
+  <script src="js/debugmenu.js"></script>
+  <script src="js/resetui.js"></script>
+  <script src="js/migrateui.js"></script>
+  <script src="js/gamesyncui.js"></script>
+  <script src="js/savesui.js"></script>
+  <script src="js/skinview.js"></script>
+  <script src="js/skinui.js"></script>
+  <script src="js/alertbar.js"></script>
+  <script src="js/art.js"></script>
+  <script src="js/gamesound.js"></script>
+  <script src="js/scene/scenekit.js"></script>
+  <script src="js/scene/scene.js"></script>
+  <script src="js/scene/sceneents.js"></script>
+  <script src="js/scene/sceneevents.js"></script>
+  <script src="js/scene/scenedraw.js"></script>
+  <script src="js/scene/sceneworld.js"></script>
+  <script src="js/scene/sceneocean.js"></script>
+  <script src="js/scene/scenecave.js"></script>
+  <script src="js/scene/scenefluid.js"></script>
+  <script src="js/scene/scenedeep.js"></script>
+  <script src="js/scene/sceneland.js"></script>
+  <script src="js/scene/scenenether.js"></script>
+  <script src="js/scene/scenefortress.js"></script>
+  <script src="js/scene/scenebuild.js"></script>
+  <script src="js/scene/scenehouse.js"></script>
+  <script src="js/scene/sceneskin.js"></script>
+  <script src="js/scene/sceneinteract.js"></script>
+  <script src="js/scene/scenejungle.js"></script>
+  <script src="js/scene/scenetemple.js"></script>
+  <script src="js/scene/sceneend.js"></script>
+  <script src="js/scene/sceneending.js"></script>
+  <script src="js/scene/scenefight.js"></script>
+  <script src="js/scene/scenetorch.js"></script>
+  <script src="js/scene/sceneburst.js"></script>
+  <script src="js/scene/sceneweather.js"></script>
+  <script src="js/scene/scenemobs.js"></script>
+  <script src="js/tasks.js"></script>
+  <script src="js/tags.js"></script>
+  <script src="js/modnames.js"></script>
+  <script src="js/mcmodui.js"></script>
+  <script src="js/mcmodcn.js"></script>
+  <script src="js/logs.js"></script>
+  <script src="js/sources.js"></script>
+  <script src="js/modkit.js"></script>
+  <script src="js/notices.js"></script>
+  <script src="js/testask.js"></script>
+  <script src="js/javaretest.js"></script>
+  <script src="js/cfmanual.js"></script>
+  <script src="js/profileui.js"></script>
+  <script src="js/promoteui.js"></script>
+  <script src="js/isoworlds.js"></script>
+  <script src="js/compui.js"></script>
+  <script src="js/javacheck.js"></script>
+  <script src="js/placecheck.js"></script>
+  <script src="js/bgperf.js"></script>
+  <script src="js/setup.js"></script>
+  <script src="js/music.js"></script>
+  <script src="js/endpoemtext.js"></script>
+  <script src="js/endpoem.js"></script>
+  <script src="js/ultimate.js"></script>
+  <script src="js/perfmode.js"></script>
+  <script src="js/brandlogo.js"></script>
+  <script src="js/fontwarm.js"></script>
+  <script src="js/simplemode.js"></script>
+  <script src="js/offline.js"></script>
+  <script src="js/langui.js"></script>
+  <script src="js/a11y.js"></script>
+  <script src="js/uistyle.js"></script>
+  <script src="js/home/tips.js"></script>
+  <script src="js/home/splash.js"></script>
+  <script src="js/home/scenepill.js"></script>
+  <script src="js/home/changelog.js"></script>
+  <script src="js/home/newspanel.js"></script>
+  <script src="js/home/panhint.js"></script>
+  <script src="js/pages/home.js"></script>
+  <script src="js/pages/versions.js"></script>
+  <script src="js/pages/download.js"></script>
+  <script src="js/modsort.js"></script>
+  <script src="js/pages/mods.js"></script>
+  <script src="js/shaderui.js"></script>
+  <script src="js/credits.js"></script>
+  <script src="js/resources.js"></script>
+  <script src="js/pages/planner-conflicts.js"></script>
+  <script src="js/pages/planner/kit.js"></script>
+  <script src="js/pages/planner/frame.js"></script>
+  <script src="js/pages/planner/choose.js"></script>
+  <script src="js/pages/planner/list.js"></script>
+  <script src="js/pages/planner/install.js"></script>
+  <script src="js/pages/planner/test.js"></script>
+  <script src="js/pages/planner/io.js"></script>
+  <script src="js/pages/planner/main.js"></script>
+  <script src="js/pages/tasks.js"></script>
+  <script src="js/pages/logs.js"></script>
+  <script src="js/pages/repair.js"></script>
+  <script src="js/pages/java.js"></script>
+  <script src="js/pages/accounts.js"></script>
+  <script src="js/pages/skins.js"></script>
+  <script src="js/pages/settingsnav.js"></script>
+  <script src="js/pages/settings.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

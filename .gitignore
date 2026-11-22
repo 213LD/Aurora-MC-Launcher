@@ -1,0 +1,27 @@
+node_modules/
+dist/
+dist-public/
+build/
+*.log
+# 开发时运行会在项目根目录生成（打包用的在 build/ 里，由 scripts/build-icon.js 生成）
+/免责声明.txt
+
+# 只留在本地、永远不上传：项目文档、AI 助手的说明 / 记忆 / 对话记录、本地设置
+PROJECT_NOTES*.md
+CLAUDE.md
+CLAUDE.local.md
+AGENTS.md
+GEMINI.md
+.claude/
+.gemini/
+.cursor/
+.codex/
+.aider*
+.vscode/
+.idea/
+memory/
+notes/
+*.jsonl
+*.local.*
+.env
+.env.*

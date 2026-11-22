@@ -1,0 +1,134 @@
+/* ═══════════════════════════════════════════════════════════
+   界面风格：经典紧凑
+   信息密度高：小字号、方角、没有动画、卡片变列表行；游戏配置页是左边列表、右边详情（.vsplit，pages/versions.js）。
+   其他页面只改间距和控件高度
+   ═══════════════════════════════════════════════════════════ */
+:root[data-style="compact"] {
+  --r-xs: 2px; --r-sm: 3px; --r: 3px; --r-lg: 4px; --r-xl: 4px; --r-card: 4px;
+  --sidebar-w: 184px;
+  --titlebar-h: 40px;
+  --accent-grad: var(--accent);
+  --shadow: 0 4px 14px rgba(0, 0, 0, .35);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, .3);
+}
+:root[data-style="compact"] *, :root[data-style="compact"] *::before, :root[data-style="compact"] *::after {
+  transition: none !important; animation: none !important; backdrop-filter: none !important;
+}
+:root[data-style="compact"] .spinner { animation: spin .8s linear infinite !important; }
+:root[data-style="compact"] .progress.indeterminate > i { animation: indet 1.3s linear infinite !important; }
+:root[data-style="compact"] ::-webkit-scrollbar-thumb { border-radius: 2px; }
+:root[data-style="compact"] body { font-size: 13px; line-height: 1.45; }
+
+/* ───── 侧边栏 ───── */
+:root[data-style="compact"] .sidebar { background: var(--bg-1); }
+:root[data-style="compact"] .brand { height: 52px; padding: 0 14px; gap: 10px; }
+:root[data-style="compact"] .brand img { width: 26px; height: 26px; filter: none; }
+:root[data-style="compact"] .brand-name { font-size: 16px; }
+:root[data-style="compact"] .brand-sub { display: none; }
+:root[data-style="compact"] #nav { padding: 2px 8px; gap: 1px; }
+:root[data-style="compact"] .nav-sep { margin: 6px 6px; }
+:root[data-style="compact"] .nav-item { height: 32px; padding: 0 10px; gap: 10px; font-size: 13px; }
+:root[data-style="compact"] .nav-item svg { width: 17px; height: 17px; transform: none !important; }
+:root[data-style="compact"] .nav-item.active { background: var(--accent-soft); }
+:root[data-style="compact"] .nav-item.active::before { top: 7px; bottom: 7px; box-shadow: none; }
+:root[data-style="compact"] .side-toggle { height: 28px; margin: 2px 8px 4px; padding: 0 10px; }
+:root[data-style="compact"] .sidebar-foot { padding: 6px 8px; }
+:root[data-style="compact"] .account-chip { padding: 4px 6px; }
+:root[data-style="compact"] .account-chip .avatar, :root[data-style="compact"] .account-chip img { width: 28px !important; height: 28px !important; }
+:root[data-style="compact"].side-collapsed { --sidebar-w: 60px; }
+@media (max-width: 1000px) { :root[data-style="compact"] { --sidebar-w: 60px; } }
+
+/* ───── 页面 ───── */
+:root[data-style="compact"] .titlebar { padding-left: 20px; }
+:root[data-style="compact"] .tb-btn { height: 30px; min-width: 30px; border-radius: 3px; }
+:root[data-style="compact"] .page { padding: calc(var(--titlebar-h) + 2px) 20px 20px; }
+:root[data-style="compact"] .page-inner { max-width: 1400px; }
+:root[data-style="compact"] .page-head { margin: 0 0 12px; gap: 10px; }
+:root[data-style="compact"] .page-head h1 { font-size: 20px; }
+:root[data-style="compact"] .page-head p { font-size: 12.5px; margin-top: 2px; }
+:root[data-style="compact"] .section-title { margin: 16px 0 8px; font-size: 13.5px; }
+:root[data-style="compact"] .toolbar { margin-bottom: 10px; gap: 8px; }
+:root[data-style="compact"] .tabs { margin-bottom: 12px; }
+:root[data-style="compact"] .tab { height: 34px; padding: 0 12px; font-size: 13px; }
+:root[data-style="compact"] .grid { gap: 8px; }
+:root[data-style="compact"] .card { padding: 12px 14px; }
+:root[data-style="compact"] .list { gap: 4px; }
+:root[data-style="compact"] .list-row { padding: 6px 10px; gap: 10px; contain-intrinsic-size: 0 46px; }
+:root[data-style="compact"] .list-row .ico { width: 32px; height: 32px; }
+:root[data-style="compact"] .list-row .title { font-size: 13.5px; }
+:root[data-style="compact"] .list-row .sub { font-size: 12px; margin-top: 0; }
+:root[data-style="compact"] .set-group { margin-bottom: 12px; padding: 2px 0; }
+:root[data-style="compact"] .set-group > h3 { padding: 10px 16px 4px; }
+:root[data-style="compact"] .set-row { min-height: 44px; padding: 8px 16px; gap: 16px; }
+:root[data-style="compact"] .set-row .s-title { font-size: 13px; }
+:root[data-style="compact"] .set-row .s-desc { font-size: 12px; }
+:root[data-style="compact"] .set-row[id] { scroll-margin-top: 56px; }
+:root[data-style="compact"] .pgrid { gap: 8px; }
+:root[data-style="compact"] .pcard { padding: 10px 12px 8px; gap: 6px; }
+:root[data-style="compact"] .choice { padding: 10px; gap: 10px; }
+:root[data-style="compact"] .issue, :root[data-style="compact"] .task-item { padding-top: 8px; padding-bottom: 8px; }
+:root[data-style="compact"] .field { margin-bottom: 12px; }
+:root[data-style="compact"] .modal-head { padding: 14px 18px 4px; }
+:root[data-style="compact"] .modal-head h2 { font-size: 16px; }
+:root[data-style="compact"] .modal-body { padding: 10px 18px 6px; }
+:root[data-style="compact"] .modal-foot { padding: 10px 18px 14px; }
+:root[data-style="compact"] .drawer-head { padding: 14px 18px 10px; }
+:root[data-style="compact"] .drawer-body { padding: 12px 18px 20px; }
+:root[data-style="compact"] .drawer-section { margin-bottom: 16px; }
+:root[data-style="compact"] .empty { padding: 32px 16px; }
+
+/* ───── 控件 ───── */
+:root[data-style="compact"] .btn { height: 30px; padding: 0 11px; font-size: 12.5px; gap: 6px; border-radius: 3px; }
+:root[data-style="compact"] .btn.sm { height: 26px; padding: 0 9px; font-size: 12px; }
+:root[data-style="compact"] .btn.lg { height: 36px; padding: 0 16px; font-size: 14px; }
+:root[data-style="compact"] .btn.icon { width: 30px; padding: 0; }
+:root[data-style="compact"] .btn.sm.icon { width: 26px; }
+:root[data-style="compact"] .btn.primary, :root[data-style="compact"] .btn.primary:hover { box-shadow: none; }
+:root[data-style="compact"] .btn:active { transform: none; }
+:root[data-style="compact"] .input { height: 30px; border-radius: 3px; }
+:root[data-style="compact"] .input.sm { height: 26px; }
+:root[data-style="compact"] .select-btn { height: 30px; border-radius: 3px; }
+:root[data-style="compact"] .select-btn.sm { height: 26px; }
+:root[data-style="compact"] .seg { padding: 2px; }
+:root[data-style="compact"] .seg button { height: 24px; padding: 0 10px; font-size: 12.5px; }
+:root[data-style="compact"] .seg button.on { box-shadow: none; }
+:root[data-style="compact"] .chip { height: 24px; padding: 0 10px; }
+:root[data-style="compact"] .switch { width: 36px; height: 20px; }
+:root[data-style="compact"] .switch .thumb { width: 14px; height: 14px; }
+:root[data-style="compact"] .switch input:checked ~ .thumb { transform: translateX(16px); }
+:root[data-style="compact"] .pcard:hover { transform: none; }
+:root[data-style="compact"] .launch-btn::before, :root[data-style="compact"] .launch-btn::after { display: none; }
+:root[data-style="compact"] .launch-btn:hover { transform: none; }
+
+/* ───── 游戏配置：左边列表、右边详情 ───── */
+.vsplit { display: grid; grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); gap: 12px; align-items: start; }
+.vl-list { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--r); background: var(--surface); overflow: hidden; max-height: calc(100vh - 170px); overflow-y: auto; }
+.vl-row { display: flex; align-items: center; gap: 10px; padding: 6px 10px; cursor: pointer; border-bottom: 1px solid var(--border); min-width: 0; }
+.vl-row:last-child { border-bottom: none; }
+.vl-row:hover { background: var(--surface-2); }
+.vl-row.on { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+.vl-row:focus-visible { outline-offset: -2px; }
+.vl-ico { width: 32px; height: 32px; image-rendering: pixelated; object-fit: cover; flex-shrink: 0; }
+.vl-text { flex: 1; min-width: 0; }
+.vl-name { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vl-sub { font-size: 11.5px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vl-detail { position: sticky; top: 0; display: grid; grid-template-columns: minmax(0, 1fr) 190px; grid-template-areas: "head play" "info acts"; gap: 12px 16px; padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--r); background: var(--surface); }
+.vl-head { grid-area: head; display: flex; align-items: center; gap: 12px; min-width: 0; }
+.vl-big { width: 56px; height: 56px; image-rendering: pixelated; object-fit: cover; flex-shrink: 0; }
+.vl-title { font-size: 17px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vl-play { grid-area: play; align-self: center; height: 40px; font-size: 14px; }
+.vl-actions { grid-area: acts; display: flex; flex-direction: column; gap: 4px; }
+.vl-actions .btn { justify-content: flex-start; width: 100%; }
+.vl-info { grid-area: info; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+@media (max-width: 900px) {
+  .vsplit { grid-template-columns: 1fr; }
+  .vl-list { max-height: 40vh; }
+}
+
+/* 方角：所有圆角压到 3px（状态点、加载圈保持圆形） */
+:root[data-style="compact"] *, :root[data-style="compact"] *::before, :root[data-style="compact"] *::after { border-radius: 3px !important; }
+:root[data-style="compact"] :is(.dot, .spinner, .pulse) { border-radius: 50% !important; }
+
+/* 设置页分类（rc2）：更紧凑 */
+:root[data-style="compact"] .set-cat { height: 32px; font-size: 13px; gap: 8px; }
+:root[data-style="compact"] .set-layout { gap: 16px; }
