@@ -44,7 +44,6 @@ function setMc(game, id, mc) {
 }
 
 async function startApp(name, { language = 'zh-CN', withGame = false, config: extra = {}, setup: prepare, locale, safe } = {}) {
-  const port = await freePort();
   const root = path.join(BASE, `ui-${name}`);
   fs.rmSync(root, { recursive: true, force: true });
   const data = path.join(root, 'data');
@@ -79,16 +78,26 @@ async function startApp(name, { language = 'zh-CN', withGame = false, config: ex
     for (const d of ['libraries', 'assets']) fs.cpSync(path.join(SRC, d), path.join(game, d), { recursive: true });
     fs.cpSync(path.join(SRC, 'versions', '1.20.1'), path.join(game, 'versions', '1.20.1'), { recursive: true });
   }
-  const child = spawn(ELECTRON, [...(locale ? ['-r', path.join(__dirname, 'locale-hook.js')] : []), ...(safe ? ['-r', path.join(__dirname, 'safe-hook.js')] : []), `--remote-debugging-port=${port}`, ...NO_THROTTLE, '.'], { // 后台也不降速（见 cdp.js）
-    cwd: process.env.AURORA_REGRESS_APP || REPO, stdio: 'ignore', windowsHide: true,
-    env: { ...process.env, AURORA_TEST_LOCALE: locale || '', AURORA_DATA_DIR: data, AURORA_GAME_DIR: game, AURORA_TEST_LEAK_LOG: safe ? path.join(root, 'leak.log') : '', AURORA_TEST_TRASH: path.join(root, 'fake-trash'), AURORA_SHOT_DIR: path.join(root, 'shots'), AURORA_SHOT_PAGES: '-#start', AURORA_SHOT_KEEP: '1', AURORA_SHOT_DELAY: '1500' },
-  });
+  // 偶尔会连不上调试端口（挑好的空闲端口在程序启动前被别的程序占了，程序照常打开、只是没有调试端口）：换个端口重来，最多三次
+  let child = null;
   let page = null;
-  for (let i = 0; i < 120 && !page; i++) {
-    try { const l = await (await fetch(`http://127.0.0.1:${port}/json`)).json(); page = l.find((t) => t.type === 'page' && !/devtools/.test(t.url)); } catch { /* 还没起来 */ }
-    await sleep(500); // pitfall-ok：轮询里两次查看之间的间隔
+  for (let attempt = 0; attempt < 3 && !page; attempt++) {
+    const port = await freePort();
+    const me = spawn(ELECTRON, [...(locale ? ['-r', path.join(__dirname, 'locale-hook.js')] : []), ...(safe ? ['-r', path.join(__dirname, 'safe-hook.js')] : []), `--remote-debugging-port=${port}`, ...NO_THROTTLE, '.'], { // 后台也不降速（见 cdp.js）
+      cwd: process.env.AURORA_REGRESS_APP || REPO, stdio: 'ignore', windowsHide: true,
+      env: { ...process.env, AURORA_TEST_LOCALE: locale || '', AURORA_DATA_DIR: data, AURORA_GAME_DIR: game, AURORA_TEST_LEAK_LOG: safe ? path.join(root, 'leak.log') : '', AURORA_TEST_TRASH: path.join(root, 'fake-trash'), AURORA_SHOT_DIR: path.join(root, 'shots'), AURORA_SHOT_PAGES: '-#start', AURORA_SHOT_KEEP: '1', AURORA_SHOT_DELAY: '1500' },
+    });
+    child = me;
+    let exited = false;
+    me.once('exit', () => { exited = true; });
+    const giveUp = Date.now() + 60000;
+    while (!page && !exited && Date.now() < giveUp) {
+      try { const l = await (await fetch(`http://127.0.0.1:${port}/json`, { signal: AbortSignal.timeout(3000) })).json(); page = l.find((t) => t.type === 'page' && !/devtools/.test(t.url)); } catch { /* 还没起来 */ }
+      if (!page) await sleep(500); // pitfall-ok：轮询里两次查看之间的间隔
+    }
+    if (!page) { try { me.kill(); } catch { /* 已退出 */ } await waitExit(me, 10000); }
   }
-  if (!page) throw new Error('连不上调试端口');
+  if (!page) throw new Error('连不上调试端口（换了三次端口）');
   const ws = new WebSocket(page.webSocketDebuggerUrl);
   await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; });
   let id = 0; const wait = new Map();

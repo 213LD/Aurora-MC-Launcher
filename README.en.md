@@ -125,6 +125,12 @@ The layers are enforced: `engine` may not depend on `core`, and `core` may not d
 
 Most code comments and the interface source text are in Chinese; the English interface is produced from `src/shared/i18n/tr-en.js`.
 
+## Logo and visual identity
+
+The logo is a glass block holding an aurora night sky with an oak tree growing inside. The sidebar mark follows the home background scene (11 of them) and turns into a flat 2D version in performance mode. The name, colours, type, drawing rules and don'ts are in [docs/brand](docs/brand/README.en.md).
+
+<p align="center"><a href="docs/brand/README.en.md"><img src="docs/brand/vi-sheet.png" width="720" alt="VI overview: the main mark, the 11 scene marks with their 2D versions, colours, sizes and backgrounds"></a></p>
+
 ## How this project was made
 
 The code, the interface and the background music were written by an AI (Claude). The requirements, the design decisions and round after round of hands-on testing were done by the author, 213LD.

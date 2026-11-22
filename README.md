@@ -125,6 +125,12 @@ scripts/               打包、各种检查；regress/ 是回归测试
 
 分层是强制的：`engine` 不能依赖 `core`，`core` 不能依赖界面，`npm test` 里的分层检查会拦。
 
+## 标志和视觉规范
+
+标志是一块装着极光夜空的玻璃方块，里面长着一棵橡树；侧边栏的标志跟着主页背景的场景换（11 种），性能模式时换成 2D 版。名字、颜色、字体、画法和不要这样做的，都在 [docs/brand](docs/brand/README.md)。
+
+<p align="center"><a href="docs/brand/README.md"><img src="docs/brand/vi-sheet.png" width="720" alt="VI 总览：主标志、11 个场景标志和它们的 2D 版、颜色、大小和底色"></a></p>
+
 ## 这个项目是怎么做出来的
 
 代码、界面和背景音乐都是 AI（Claude）写的；需求、设计上的决定和一轮轮的试用测试，是作者 213LD 做的。

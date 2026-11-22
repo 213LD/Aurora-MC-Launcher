@@ -13,7 +13,20 @@
  * - 记录：脚本异常、console.error、主进程 [ipc:xxx] 报错、crit 级提示；结果写进 AURORA_REGRESS_DIR/walk-report.json
  * 点了以后报的错只报告（很多是空输入被拒绝这类正常的）；走不完（页面崩了）和新出现的界面毛病算失败
  */
-const { freePort, NO_THROTTLE, calm } = require('./cdp');
+const { freePort, NO_THROTTLE, calm, until } = require('./cdp');
+
+/**
+ * 点了以后等页面定下来：先等页面不再变，再等界面问主进程的请求都回来，回来了再等页面不再变。
+ * 很多弹窗要先问主进程拿数据才出来（「还原…」先扫一遍文件夹）。只等页面不再变的话，页面在等回答时本身不动，
+ * 弹窗晚一点出来就被当成「点了没打开新的一层」，那一层走不到（以前自检报出来的处数时多时少就是这样）
+ */
+async function settle(ev) {
+  await calm(ev);
+  if (await ev('!!(window.A && A.apiPending && A.apiPending())').catch(() => false)) {
+    await until(ev, '!(window.A && A.apiPending && A.apiPending())', 10000);
+    await calm(ev);
+  }
+}
 const { COLLECT, collectAt } = require('./snapshot-collect');
 const fs = require('fs');
 const os = require('os');
@@ -29,7 +42,8 @@ const ALL = require('./pages'); // 页面清单只有一份（pages.js）
 const SETTINGS = ALL.SETTINGS.map((c) => `settings:${c}`);
 const PAGES = [...ALL.PAGES.filter((p) => p !== 'settings'), ...SETTINGS];
 const MAX_PER_PAGE = 260;
-const PAGE_LIMIT_MS = Number(process.env.AURORA_WALK_LIMIT_MS) || 900000; // 每个页面最多走多久（rc12 走到底以后游戏配置页要十来分钟）
+// 每个页面最多走多久（rc12 走到底以后游戏配置页要十来分钟）。自检给 45 分钟：要把关于页的每个按钮都走到，向导往里走得深，机器忙时 15 分钟走不完
+const PAGE_LIMIT_MS = Number(process.env.AURORA_WALK_LIMIT_MS) || (process.argv.includes('--selftest') ? 2700000 : 900000);
 const MAX_IN_MODAL = 25; // 一个弹窗里最多点几个按钮
 const MAX_IN_DEEP = 14; // 更深的层里最多点几个
 const MAX_SAME_LAYER = 4; // 同一层（同一个弹窗的同一步）里，点选项换出来的不同内容最多往里走几种：选项多了是成倍的，每种都点一遍没有必要，
@@ -213,7 +227,7 @@ async function walkPage(page) {
   // 同样文字的第几个，用来认「点过没有」（点了筛选以后下标会变）
   const keyed = (list) => { const n = new Map(); return list.map((x) => { const k = n.get(x.label) || 0; n.set(x.label, k + 1); return { ...x, key: `${x.label}#${k}`, nth: k }; }); };
   const seen = async (label, before) => {
-    await calm(app.ev);
+    await settle(app.ev);
     const out = await app.ev(OUTCOME);
     const errs = [...app.errors, ...app.mainLog];
     if (errs.length || (out && out.crit && out.crit.length)) rec.problems.push({ label, errors: errs.slice(0, 4), crit: out && out.crit });
@@ -246,7 +260,7 @@ async function walkPage(page) {
     const again = keyed(await app.ev(LIST(pid))).find((x) => x.key === it.key);
     if (!again) return false;
     await clickAt(again.i);
-    await calm(app.ev);
+    await settle(app.ev);
     for (const st of steps) {
       const L = await app.ev(LAYER);
       if (!L || L.id !== st.id) return false;
@@ -254,7 +268,7 @@ async function walkPage(page) {
       if (at == null) return false;
       await humanPause();
       if ((await app.ev(CLICK_TOP(at))) !== true) return false;
-      await calm(app.ev);
+      await settle(app.ev);
     }
     return true;
   };
@@ -362,7 +376,9 @@ async function walkPage(page) {
     const rec = await walkPage('settings:about');
     const off = rec.ui.filter((u) => /伸到窗口外面/.test(u.problem) && u.where === '最上面那一层');
     const deep = off.filter((u) => u.after.split(' → ').length >= 5);
-    const r = { id: 'walk', name: `走查自检：弹窗里的主按钮故意挪出窗口，每一层都报得出来（报了 ${off.length} 处，其中点了四下以上才到的 ${deep.length} 处；走了 ${rec.layers} 层、最深第 ${rec.maxDepth} 层）`, ok: off.length >= 3 && deep.length >= 1 && !rec.crashed, detail: off.slice(0, 6).map((u) => `${u.problem}（${u.after.slice(-80)}）`).join('；') };
+    const r = { id: 'walk', name: `走查自检：弹窗里的主按钮故意挪出窗口，每一层都报得出来（报了 ${off.length} 处，其中点了四下以上才到的 ${deep.length} 处；走了 ${rec.layers} 层、最深第 ${rec.maxDepth} 层）`, ok: off.length >= 3 && deep.length >= 1 && !rec.crashed && !rec.timedOut, detail: [rec.timedOut ? `到了时限（${Math.round(PAGE_LIMIT_MS / 60000)} 分钟）关于页还没走完` : '', ...off.slice(0, 6).map((u) => `${u.problem}（${u.after.slice(-80)}）`)].filter(Boolean).join('；') };
+    // 没过的时候把走到的层列出来，看是哪一层没走到
+    if (!r.ok) for (const line of rec.opened) console.log(`    ${line.slice(0, 200)}`);
     console.log(`${r.ok ? 'PASS' : 'FAIL'} [walk] ${r.name}${r.detail ? ` — ${r.detail.slice(0, 800)}` : ''}`);
     if (process.env.AURORA_REGRESS_OUT) fs.appendFileSync(process.env.AURORA_REGRESS_OUT, `${JSON.stringify(r)}\n`, 'utf8');
     process.exit(0);

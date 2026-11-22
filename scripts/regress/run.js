@@ -34,7 +34,7 @@ const flag = (n) => (FULL && ['game', 'flow', 'ui', 'real-trash', 'walk', 'robus
 const val = (n) => { const a = args.find((x) => x.startsWith(`--${n}=`)); return a ? a.slice(n.length + 3) : null; };
 
 const DATA = ['config-nobak', 'config-bak-1', 'config-bak-2', 'config-locked', 'accounts-bak-1', 'accounts-bak-2', 'accounts-nobak', 'meta-corrupt', 'old-data', 'stores-corrupt', 'migrate-import', 'meta-race', 'stash-merge', 'sandbox-midway', 'rename-rollback', 'trash-unavailable', 'trash-inuse'];
-const FUNC = ['lang-list', 'export-public', 'promote-real', 'mark-plain', 'bring-items', 'bring-global', 'bring-worlds', 'mc-compare', 'iso-policy', 'cancel-copy', 'duplicate-fail', 'swallowed-errors', 'java-prefix', 'downloader-lock', 'zip-names', 'nbt-mutf8'];
+const FUNC = ['lang-list', 'export-public', 'promote-real', 'mark-plain', 'bring-items', 'bring-global', 'bring-worlds', 'mc-compare', 'iso-policy', 'cancel-copy', 'duplicate-fail', 'swallowed-errors', 'java-prefix', 'java-inprogress', 'downloader-lock', 'zip-names', 'nbt-mutf8'];
 const PRE2 = ['write-atomic', 'write-atomic-nbt', 'quit-flush', 'flush-retry', 'path-scope', 'names', 'pack-traversal', 'net-names', 'copy-rules', 'encoding', 'net-flaky'];
 const PRE3 = ['dl-report', 'task-engine', 'ipc-split', 'launch-guard'];
 const PRE5 = ['fs-errors', 'error-names', 'hardware-text'];
@@ -182,7 +182,7 @@ function runRobust() {
 }
 
 function runWalk() {
-  runNode('walk.js', ['--selftest'], 1200000); // 先确认走查的界面检查真的在查（rc12）
+  runNode('walk.js', ['--selftest'], 3000000); // 先确认走查的界面检查真的在查（rc12）
   console.log('\n=== walk.js ===');
   const before = readRows().length;
   const r = spawnSync(process.execPath, [path.join(__dirname, 'walk.js')], { env: { ...process.env, AURORA_REGRESS_OUT: out, AURORA_REGRESS_DIR: BASE }, encoding: 'utf8', timeout: 7200000, windowsHide: true, maxBuffer: 16 * 1024 * 1024 });

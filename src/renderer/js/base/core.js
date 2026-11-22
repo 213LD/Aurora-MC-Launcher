@@ -3,9 +3,13 @@
 (function () {
   const bridge = window.aurora;
 
+  // 还在等主进程回答的请求有几个。界面测试点了按钮以后等它回到 0 再看：很多弹窗要先问主进程拿数据才出来
+  let pending = 0;
   // Error 在这边生成：从 preload 抛过来的 Error 会丢掉 reason / cancelled（contextBridge 只复制 message）
   const api = async (channel, ...args) => {
-    const r = await bridge.invoke(channel, ...args);
+    let r;
+    pending++;
+    try { r = await bridge.invoke(channel, ...args); } finally { pending--; }
     if (r && r.ok) return r.data;
     const e = new Error((r && r.error) || '未知错误');
     // 请求报网络错误 / 超时：可能刚断网，让离线模式（offline.js）去确认一下
@@ -349,7 +353,7 @@
   window.A = {
     // 底层要用上层的功能时，上层在这里登记，底层不直接认识它们（2.0.0-pre9，分层检查）
     hooks: { netError: null, recorder: null, goBack: null, noDangerWait: null, tipBlocks: [] },
-    api, listen, h, $, $$, clear, mount, append, icon, ICONS, t, BRAND, cmpMc: window.MCVER.cmpMc,
+    api, apiPending: () => pending, listen, h, $, $$, clear, mount, append, icon, ICONS, t, BRAND, cmpMc: window.MCVER.cmpMc,
     fmtBytes, fmtSpeed, fmtDate, fmtRelative, fmtNum, noTr, fmtEta, fmtMem, debounce,
     nm: window.I18N.nm, nmJoin: window.I18N.nmJoin, safeName: window.PATHRULES.safeName, cutChars: window.PATHRULES.cutChars, nameProblem: window.PATHRULES.problemText,
     LOADERS, TYPE_NAMES, PROFILE_TYPES, LEVELS, level, levelIcon, FEATURES, msDevNotice, displayName, fmtDuration, versionSub,

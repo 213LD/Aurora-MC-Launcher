@@ -14,7 +14,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawn } = require('child_process');
-const { connect, waitExit, freePort, sleep, NO_THROTTLE, track, until } = require('./cdp');
+const { connect, waitExit, freePort, sleep, NO_THROTTLE, track, until, waitFor } = require('./cdp');
 
 const REPO = path.resolve(__dirname, '..', '..');
 const BASE = require('./editions').BASE;
@@ -145,12 +145,15 @@ const SCENARIOS = {
 
     // 窗口和跳转
     const before = await a.ev('location.href');
-    const opened = await a.ev("(() => { const w1 = window.open('https://example.com/a'); const w2 = window.open('file:///C:/Windows/win.ini'); const w3 = window.open('javascript:1'); return [w1 === null, w2 === null, w3 === null]; })()");
+    // https 的放在最后开：主进程按顺序处理，等到它记上了，前面两个要是被交出去也早记上了
+    const opened = await a.ev("(() => { const w1 = window.open('file:///C:/Windows/win.ini'); const w2 = window.open('javascript:1'); const w3 = window.open('https://example.com/a'); return [w1 === null, w2 === null, w3 === null]; })()");
     await sleep(400); // pitfall-ok：要证明没有开新窗口，只能等一会儿看
     check('安全', 'window.open 不开新窗口', opened.every(Boolean), opened);
     const tg = await (await fetch(`http://127.0.0.1:${a.ws.url.match(/:(\d+)\//)[1]}/json`)).json();
     check('安全', '没有多出页面', tg.filter((t) => t.type === 'page').length === 1, tg.map((t) => t.url));
-    const ext = a.log().shell.filter((s) => s.kind === 'openExternal').map((s) => s.arg);
+    // 交给系统浏览器是主进程异步记下来的：等到 https 那个记上了再看（以前只等 0.4 秒，机器忙时还没记上）
+    const opens = () => a.log().shell.filter((s) => s.kind === 'openExternal').map((s) => s.arg);
+    const ext = (await waitFor(() => { const v = opens(); return v.includes('https://example.com/a') && v; }, 8000)) || opens();
     check('安全', '外部网页只把 http(s) 交给系统浏览器', ext.includes('https://example.com/a') && !ext.some((u) => /^(file|javascript):/.test(u)), ext);
 
     const evilUrl = require('url').pathToFileURL(path.join(a.root, 'aurora-canary', 'evil.html')).href;

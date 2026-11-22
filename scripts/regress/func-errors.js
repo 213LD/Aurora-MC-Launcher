@@ -825,6 +825,33 @@ const SCENARIOS = {
     check('5-1', '卸载的正是全局选的那个：改回自动（行为不变）', config.get().java.selected === 'auto', config.get().java.selected);
   },
 
+  // ── 检测 Java 时不算没装完的：解压到一半的 *.tmp、正在下载的官方运行时 ──
+  async 'java-inprogress'() {
+    const { data } = setup('java-inprogress');
+    const java = core('java');
+    const rt = path.join(data, 'runtime');
+    // 有 release 文件（版本号、架构都在）就不会真的去运行 java.exe，空文件就够
+    const fake = async (home, version) => {
+      await fsp.mkdir(path.join(home, 'bin'), { recursive: true });
+      await fsp.writeFile(path.join(home, 'release'), `JAVA_VERSION="${version}"\nOS_ARCH="x86_64"\nIMPLEMENTOR="Regress Fake"\n`, 'utf8');
+      for (const exe of process.platform === 'win32' ? ['java.exe', 'javaw.exe'] : ['java']) await fsp.writeFile(path.join(home, 'bin', exe), '');
+      return home;
+    };
+    const done = await fake(path.join(rt, 'java-runtime-delta'), '21.0.7');
+    const unpacking = await fake(path.join(rt, 'temurin-25-jre.tmp', 'jdk-25.0.5+8-jre'), '25.0.5');
+    const downloading = await fake(path.join(rt, 'java-runtime-gamma'), '17.0.15');
+    await fsp.writeFile(path.join(downloading, '.aurora-runtime-installing'), '');
+    const same = (a, b) => path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase();
+    const has = (list, home) => list.some((j) => same(j.home, home));
+    let found = await java.detect(true);
+    check('Java', '确认场景成立：装好的 Aurora 下载的 Java 认得出来', has(found, done), found.map((j) => `${j.major}:${path.basename(j.home)}`).join(' '));
+    check('Java', '正在解压的临时文件夹（*.tmp）里的 Java 不算（以前会被运行、当场崩溃留下 hs_err_pid*.log）', !has(found, unpacking), found.filter((j) => /\.tmp/i.test(j.home)).map((j) => j.home));
+    check('Java', '正在下载的官方运行时（有没装完的标记）不算', !has(found, downloading), found.filter((j) => /gamma/.test(j.home)).map((j) => j.home));
+    await fsp.rm(path.join(downloading, '.aurora-runtime-installing'));
+    found = await java.detect(true);
+    check('Java', '标记去掉（装完了）就认得出来', has(found, downloading), found.map((j) => `${j.major}:${path.basename(j.home)}`).join(' '));
+  },
+
   // ── 7-1：两个任务同时下载同一个文件 ──
   async 'downloader-lock'() {
     const { root } = setup('downloader-lock');

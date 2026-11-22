@@ -12,6 +12,17 @@ const { seal } = require('./sandbox-hook');
 const root = process.env.AURORA_SANDBOX_ROOT;
 const out = path.join(root, 'sandbox-log.json');
 const nativeWrite = fs.writeFileSync;
+// 开发时运行，程序启动 1.5 秒后会在项目根目录生成「免责声明.txt」（内容没变就不写）。刚导出的公开版副本、刚克隆的仓库里没有这个文件，
+// 程序一写就被隔离层当成「写到测试目录外面」拦下；关进隔离层之前先替它写好，和平时开发时运行留下的一样。
+// 程序目录用工作目录：测试都是在程序目录里跑 `electron .`（-r 加载这里时 app.getAppPath() 还是 Electron 自带的 default_app）
+try {
+  const d = require(path.join(process.cwd(), 'src', 'main', 'disclaimer.js'));
+  const file = path.join(process.cwd(), d.FILE_NAME);
+  const content = `\uFEFF${d.text()}\r\n`;
+  let same = false;
+  try { same = fs.readFileSync(file, 'utf8') === content; } catch { /* 还没有 */ }
+  if (!same) fs.writeFileSync(file, content, 'utf8');
+} catch { /* 老版本的程序（升级测试）没有这些导出：照旧 */ }
 const box = seal(root);
 box.allowQuit();
 if (process.env.AURORA_SANDBOX_SAVE_TO) require('electron').dialog.showSaveDialog = async () => ({ canceled: false, filePath: process.env.AURORA_SANDBOX_SAVE_TO });

@@ -97,13 +97,25 @@ async function listDirs(dir) {
   } catch { return []; }
 }
 
-/** 在目录中有限深度地查找包含 bin/java 的目录 */
+// 官方运行时是边下载边放进最终目录的：开始时放这个标记，装完才删。有标记就是还没装完（或者装到一半取消了、失败了）。
+// 和整合包没装完的 .aurora-installing（recover.js）不是一回事，名字分开
+const INSTALLING = '.aurora-runtime-installing';
+
+/**
+ * 在目录中有限深度地查找包含 bin/java 的目录。
+ * 没装完的不算：*.tmp 是 Temurin / 微软 JDK 正在解压的临时文件夹，带 INSTALLING 标记的是正在下载的官方运行时。
+ * 以前检测正好撞上解压到一半（java.exe 已经解出来、release 还没有），会去运行这个不完整的 Java，它当场崩溃，在启动器的工作目录留下 hs_err_pid*.log；
+ * release 已经解出来的话，还会把临时文件夹里的 Java 列出来，改名以后路径就不在了
+ */
 async function findHomes(root, depth, out, source) {
   if (depth < 0) return;
-  if (await exists(path.join(root, 'bin', EXE))) { out.push({ home: root, source }); return; }
+  if (await exists(path.join(root, 'bin', EXE))) {
+    if (!(await exists(path.join(root, INSTALLING)))) out.push({ home: root, source });
+    return;
+  }
   for (const d of await listDirs(root)) {
     const base = path.basename(d).toLowerCase();
-    if (['bin', 'lib', 'legal', 'include', 'jmods', 'conf', 'man'].includes(base)) continue;
+    if (['bin', 'lib', 'legal', 'include', 'jmods', 'conf', 'man'].includes(base) || base.endsWith('.tmp')) continue;
     await findHomes(d, depth - 1, out, source);
   }
 }
@@ -276,7 +288,7 @@ async function listMojangRuntimes() {
       major: parseMajor(r.version && r.version.name),
       released: r.version && r.version.released,
       manifest: r.manifest,
-      installed: await exists(path.join(paths.runtimeDir(), component, 'bin', EXE)),
+      installed: await exists(path.join(paths.runtimeDir(), component, 'bin', EXE)) && !(await exists(path.join(paths.runtimeDir(), component, INSTALLING))),
     });
   }
   out.sort((a, b) => a.major - b.major || a.component.localeCompare(b.component));
@@ -324,6 +336,8 @@ async function runMojangInstall(component, task) {
   if (task) task.update({ detail: '获取运行时文件清单', progress: -1 });
   const manifest = await getJson(mirrors.candidates(rt.manifest.url));
   const dir = path.join(paths.runtimeDir(), component);
+  await fsp.mkdir(dir, { recursive: true });
+  await fsp.writeFile(path.join(dir, INSTALLING), ''); // pitfall-ok：没装完的标记，空文件
   const files = [];
   const links = [];
   for (const [rel, f] of Object.entries(manifest.files || {})) {
@@ -342,6 +356,7 @@ async function runMojangInstall(component, task) {
     }
   }
   await writeJson(path.join(dir, '.aurora-runtime.json'), { component, version: rt.version, installedAt: Date.now() });
+  await fsp.rm(path.join(dir, INSTALLING), { force: true });
   cache = null;
   const info = await probe(dir, 'Aurora 下载');
   if (!info) throw new Error('运行时安装完成，但无法识别 Java');

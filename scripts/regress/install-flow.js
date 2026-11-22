@@ -156,6 +156,10 @@ const SCENARIOS = {
     // 官方运行时：第二个任务要有进度，取消第一个不影响第二个
     a = await c.bus.call('java:installMojang', 'jre-legacy');
     await waitFor(() => { const t = c.tasks.get(a.data); return t && t.bytes && t.bytes.done > 0; }, 60000);
+    // 边下载边放进最终目录：下载中有「没装完」的标记，检测 Java 不把它算进去（以前会去运行下了一半的 java.exe）
+    const marker = path.join(rt('jre-legacy'), '.aurora-runtime-installing');
+    const midway = await core('java').detect(true);
+    check('Java', '官方运行时下载中：有没装完的标记，检测 Java 不算它', fs.existsSync(marker) && !midway.some((j) => /jre-legacy/.test(j.home)), { marker: fs.existsSync(marker), listed: midway.filter((j) => /jre-legacy/.test(j.home)).map((j) => j.home) });
     b = await c.bus.call('java:installMojang', 'jre-legacy');
     let seen = 0;
     for (let i = 0; i < 400 && !seen; i++) {
@@ -170,6 +174,8 @@ const SCENARIOS = {
     check('4-6', '取消第一个任务：它自己马上停下', ta.status === 'cancelled', ta.status);
     tb = await waitTask(c.tasks, b.data, 400000);
     check('4-6', '取消第一个任务：第二个照常装完（修之前跟着失败）', tb.status === 'done' && fs.existsSync(path.join(rt('jre-legacy'), 'bin', 'java.exe')), { b: tb.status, err: String(tb.error).slice(0, 80) });
+    const after = await core('java').detect(true);
+    check('Java', '官方运行时装完：标记删掉了，检测 Java 认得出来', !fs.existsSync(marker) && after.some((j) => /jre-legacy/.test(j.home)), { marker: fs.existsSync(marker), listed: after.filter((j) => /jre-legacy/.test(j.home)).map((j) => j.home) });
 
     // 两个都取消：下载真的停下，不留临时文件夹，之后还能再装
     a = await c.bus.call('java:installTemurin', 8, 'jre');
