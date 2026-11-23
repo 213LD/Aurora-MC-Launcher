@@ -1615,6 +1615,8 @@ details.adv[open] > summary h4::before { transform: rotate(90deg); }
 /* 尚未开放的功能入口 */
 .btn.dev-soon { opacity: .62; }
 .btn.dev-soon:hover { opacity: .85; }
+.menu-item.soon { opacity: .55; }
+.menu-item.soon:hover { opacity: .8; }
 .soon-tag {
   display: inline-flex; align-items: center; font-size: 10.5px; font-weight: 650; line-height: 1; padding: 3px 7px; border-radius: 999px;
   margin-left: 2px; background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); letter-spacing: .3px;

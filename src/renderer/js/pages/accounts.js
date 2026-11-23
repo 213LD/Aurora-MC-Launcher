@@ -16,13 +16,13 @@
     gridEl = h('div.acc-grid.fade-list');
     A.mount(root, h('div.page-inner',
       h('div.page-head',
-        h('div', h('h1', '账户'), h('p', msReady() ? '使用微软账户登录正版、用皮肤站账号外置登录，或创建离线账户进行单人游戏' : '创建离线账户进行游戏，或用 LittleSkin 等皮肤站的账号外置登录；微软正版登录正在开发中')),
+        h('div', h('h1', '账户'), h('p', msReady() ? '使用微软账户登录正版、用皮肤站账号外置登录，或创建离线账户进行单人游戏' : '创建离线账户进行游戏，或用 LittleSkin 等皮肤站的账号外置登录；微软正版登录正在申请')),
         h('div.actions',
           h('button', { class: `btn ${msReady() ? '' : 'primary'}`, onclick: addOffline }, icon('user', 16), '离线账户'),
           h('button.btn', { onclick: () => addYgg(), 'data-net': '' }, icon('globe', 16), '外置登录'),
           msReady()
             ? h('button.btn.primary', { onclick: addMicrosoft }, A.msLogo(15), '微软登录')
-            : h('button.btn.dev-soon', { onclick: A.msDevNotice, 'data-tip': '内部测试阶段暂未开放' }, A.msLogo(15), '微软登录', h('span.soon-tag', '开发中')))),
+            : h('button.btn.dev-soon', { onclick: A.msPendingNotice, 'data-tip': A.MS_PENDING }, A.msLogo(15), '微软登录', h('span.soon-tag', '正在申请')))),
       gridEl));
   }
 
@@ -57,7 +57,8 @@
 
   function chooseAdd(e) {
     A.menu(e.currentTarget, [
-      msReady() ? { label: '微软账户', sub: '正版登录，可进入正版服务器', icon: 'shield', onClick: addMicrosoft, net: true } : null,
+      msReady() ? { label: '微软账户', sub: '正版登录，可进入正版服务器', icon: 'shield', onClick: addMicrosoft, net: true }
+        : { label: '微软账户', sub: '正在申请，暂时还不能用', icon: 'shield', disabled: true, tip: A.MS_PENDING, onClick: A.msPendingNotice },
       { label: '外置登录', sub: 'LittleSkin 或其他皮肤站 / 认证服务器的账号', icon: 'globe', onClick: () => addYgg(), net: true },
       { label: '离线账户', sub: '只需输入玩家名', icon: 'user', onClick: addOffline },
     ]);
@@ -171,7 +172,7 @@
 
   // ── 微软账户 ──
   async function addMicrosoft() {
-    if (!msReady()) return A.msDevNotice();
+    if (!msReady()) return A.msPendingNotice();
     if (!(state.config.msClientId || '').trim()) return clientIdDialog(addMicrosoft);
     const body = h('div', h('div.row', { style: { justifyContent: 'center', padding: '30px' } }, h('span.spinner.lg')));
     let cancelled = false;

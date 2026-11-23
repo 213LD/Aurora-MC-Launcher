@@ -6,6 +6,8 @@
 
 A Minecraft: Java Edition launcher for Windows. One exe, nothing to install: download the game, install mods, set up modpacks and track down crashes, all in one window.
 
+**Promo video** (in Chinese, on Bilibili): [see what Aurora MC Launcher can do](https://www.bilibili.com/video/BV1iNyLzcEwT/)
+
 > **NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.**
 > Aurora MC Launcher is an unofficial third-party launcher made by an individual developer. It has no connection with Mojang or Microsoft.
 
@@ -62,7 +64,7 @@ The default "Aurora" style, a pixel style in the spirit of the game, and a compa
 ### And more
 
 - **Move in from other launchers**: import profiles and saves from the official launcher, HMCL, PCL2 and MultiMC / Prism Launcher; the original files are never changed
-- **Accounts**: offline accounts and third-party login (LittleSkin and others). Offline accounts can use your own skin through the launcher's built-in local skin server. Microsoft login isn't available yet, see "Not done yet" below
+- **Accounts**: offline accounts and third-party login (LittleSkin and others). Offline accounts can use your own skin through the launcher's built-in local skin server. Microsoft login is being applied for, see "Not done yet" below
 - **Skin Center**: collect, group and preview skins in 3D, and assign them to offline accounts
 - **Log Center**: watch the game log live, filter by level, search and export; the log of every session is kept
 - **Your data, your choice of location**: the system default, portable mode (everything lives in a folder next to the exe, so you can copy the whole folder elsewhere), or a folder you pick
@@ -77,7 +79,7 @@ The default "Aurora" style, a pixel style in the spirit of the game, and a compa
 
 ## Not done yet
 
-- **Microsoft login**: the code is written, but Microsoft requires third-party launchers to sign in through their own registered Azure app and to apply separately for access to the Minecraft API. Until that is approved, the entry shows "In development"; please use an offline account or third-party login for now.
+- **Microsoft login**: the code is written, but Microsoft requires third-party launchers to sign in through their own registered Azure app and to apply separately for access to the Minecraft API. The application is in progress; until it is approved, the entry shows "Applying" (hover over it for details); please use an offline account or third-party login for now.
 - Windows only.
 
 ## Running from source

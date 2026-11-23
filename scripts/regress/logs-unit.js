@@ -23,10 +23,12 @@ app.whenReady().then(async () => {
     const idx = () => JSON.parse(fs.readFileSync(path.join(dir, 'index.json'), 'utf8')).items;
     let n = 0;
     const game = (extra = {}) => ({ id: `g${++n}`, versionId: 'Fab', startedAt: Date.now(), test: false, account: 'Steve', ...extra });
+    // 这一局记进索引是 begin() 在后台写的：等它写好再往下。不等的话机器忙时文件建好了、索引还没写，列表是空的，后面几项跟着全错
+    const begin = async (g) => { gamelogs.begin(g); await waitFor(async () => (await gamelogs.list()).some((x) => x.id === g.logId), 10000); };
 
     // ── 写、收尾、列表 ──
     const g1 = game();
-    gamelogs.begin(g1);
+    await begin(g1);
     gamelogs.write(g1, '[12:00:00] [main/INFO]: Setting user: Steve');
     gamelogs.write(g1, '[12:00:01] [Render thread/WARN]: careful');
     gamelogs.write(g1, 'java.lang.RuntimeException: boom');
@@ -58,7 +60,7 @@ app.whenReady().then(async () => {
 
     // ── 分页读、导出整份 ──
     const g2 = game({ startedAt: Date.now() + 10 });
-    gamelogs.begin(g2);
+    await begin(g2);
     for (let i = 0; i < 25000; i++) gamelogs.write(g2, `[12:00:00] [Render thread/INFO]: line ${i}`);
     Object.assign(g2, { endedAt: Date.now() + 2000, exitCode: 0 });
     await gamelogs.finish(g2);
@@ -75,7 +77,7 @@ app.whenReady().then(async () => {
 
     // ── 一局最多 20 MB ──
     const g3 = game({ startedAt: Date.now() + 20 });
-    gamelogs.begin(g3);
+    await begin(g3);
     const big = 'x'.repeat(1024 * 1024 - 1);
     for (let i = 0; i < 23; i++) gamelogs.write(g3, big);
     gamelogs.write(g3, 'after the cap');

@@ -11,6 +11,8 @@ const path = require('path');
 const PAGES = ['home', 'versions', 'download', 'mods', 'planner', 'repair', 'tasks', 'logs', 'java', 'accounts', 'skins', 'settings'];
 // 设置页分了类（rc2），一次只显示一类
 const SETTINGS = ['general', 'look', 'game', 'download', 'data', 'a11y', 'about'];
+// 跟着选中的配置变的页面：按钮走查默认在装了 Fabric 的配置下走，这几页再在纯原版配置下走一遍（walk.js --profile=Vanilla）
+const BY_PROFILE = ['home', 'repair']; // Mod 页不用：选中的配置没装加载器时它自己显示第一个装了的
 
 /** 代码里实际定义的页面（A.pages.xxx = …） */
 function definedPages(repo) {
@@ -23,4 +25,4 @@ function definedPages(repo) {
   return [...out].sort();
 }
 
-module.exports = { PAGES, SETTINGS, definedPages };
+module.exports = { PAGES, SETTINGS, BY_PROFILE, definedPages };

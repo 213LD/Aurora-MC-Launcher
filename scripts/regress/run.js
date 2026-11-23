@@ -185,10 +185,11 @@ function runWalk() {
   runNode('walk.js', ['--selftest'], 3000000); // 先确认走查的界面检查真的在查（rc12）
   console.log('\n=== walk.js ===');
   const before = readRows().length;
-  const r = spawnSync(process.execPath, [path.join(__dirname, 'walk.js')], { env: { ...process.env, AURORA_REGRESS_OUT: out, AURORA_REGRESS_DIR: BASE }, encoding: 'utf8', timeout: 7200000, windowsHide: true, maxBuffer: 16 * 1024 * 1024 });
+  const r = spawnSync(process.execPath, [path.join(__dirname, 'walk.js')], { env: { ...process.env, AURORA_REGRESS_OUT: out, AURORA_REGRESS_DIR: BASE }, encoding: 'utf8', timeout: 10800000, windowsHide: true, maxBuffer: 16 * 1024 * 1024 });
   console.log(`${r.stdout || ''}`.split(/\r?\n/).filter((l) => /^(PASS|FAIL|\s{2}\S)/.test(l)).join('\n'));
   settle('walk.js', r, before);
   runNode('walk.js', ['download', '--net=fixture'], 1800000); // 下载页再用固定数据走一遍（rc13）：上面是真联网，这遍内容固定、带极端情况
+  runNode('walk.js', [require('./pages').BY_PROFILE.join(','), '--profile=Vanilla'], 3600000); // 跟着选中的配置变的页面再在纯原版配置下走一遍
 }
 
 if (!only) preflight();
@@ -229,7 +230,7 @@ if (args.includes('--changed')) {
 === 按改动加跑：从 ${base.slice(0, 10)} 到现在改了 ${files.length} 个文件，加跑 ${extra.length} 个界面测试 ===`);
   for (const x of extra) console.log(`  ${x.script}${x.args.length ? ` ${x.args.join(' ')}` : ''} ← ${x.why.join('；')}`);
   // 走查一个页面要几分钟，全部走一遍要一个多小时：给它两个小时
-  if (!flag('robust')) for (const x of extra) runNode(x.script, x.args, x.script === 'walk.js' ? 7200000 : undefined);
+  if (!flag('robust')) for (const x of extra) runNode(x.script, x.args, x.script === 'walk.js' ? 10800000 : undefined);
   // 改到了两个版本可能不一样的地方（替身、按版本分开的代码、测试脚本……）：导出一份公开版，在里面再跑快速回归和上面这些（public-copy.js）。
   // 公开仓库里没有导出脚本，本来就是公开版，不用再跑
   const pc = impact.publicCopyFor(files);

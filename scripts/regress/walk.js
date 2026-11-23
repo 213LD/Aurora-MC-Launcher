@@ -44,6 +44,9 @@ const PAGES = [...ALL.PAGES.filter((p) => p !== 'settings'), ...SETTINGS];
 const MAX_PER_PAGE = 260;
 // 每个页面最多走多久（rc12 走到底以后游戏配置页要十来分钟）。自检给 45 分钟：要把关于页的每个按钮都走到，向导往里走得深，机器忙时 15 分钟走不完
 const PAGE_LIMIT_MS = Number(process.env.AURORA_WALK_LIMIT_MS) || (process.argv.includes('--selftest') ? 2700000 : 900000);
+// 游戏配置页走到底要 20 分钟左右（页面上 28 个按钮、70 层，新建配置的向导最深）：给 40 分钟。到了时限，没走到的就比不出少了什么
+const LIMIT_BY_PAGE = { versions: 2400000 };
+const limitOf = (page) => Number(process.env.AURORA_WALK_LIMIT_MS) || LIMIT_BY_PAGE[page] || PAGE_LIMIT_MS;
 const MAX_IN_MODAL = 25; // 一个弹窗里最多点几个按钮
 const MAX_IN_DEEP = 14; // 更深的层里最多点几个
 const MAX_SAME_LAYER = 4; // 同一层（同一个弹窗的同一步）里，点选项换出来的不同内容最多往里走几种：选项多了是成倍的，每种都点一遍没有必要，
@@ -63,9 +66,37 @@ const SELFTEST_CSS = SELFTEST ? '.modal .modal-foot .btn.primary { position: rel
  * 两种的记录分开（页面名后面加 @fixture）
  */
 const NET = (process.argv.find((x) => x.startsWith('--net=')) || '').slice(6);
-const keyOf = (page) => (NET ? `${page}@${NET}` : page);
+/**
+ * --profile=Vanilla：在哪个配置下走（一开始选中它，每次点之前也换回它，见 RESET）。默认 ModP（装了 Fabric、独立存档）；
+ * 主页、修复页跟着选中的配置变（纯原版没有加载器、没有一键 Debug），pages.js 的 BY_PROFILE 在 Vanilla 下再走一遍。
+ * 记录分开（页面名后面加 @Vanilla）
+ */
+const PROFILE = (process.argv.find((x) => x.startsWith('--profile=')) || '').slice(10) || 'ModP';
+if (!['ModP', 'Vanilla'].includes(PROFILE)) throw new Error(`--profile 只能是 ModP 或 Vanilla：${PROFILE}`);
+const keyOf = (page) => page + (NET ? `@${NET}` : '') + (PROFILE !== 'ModP' ? `@${PROFILE}` : '');
 const KNOWN_FILE = path.join(__dirname, 'walk-ui-known.json');
 const LAYERS_FILE = path.join(__dirname, 'walk-layers.json');
+/**
+ * 走到的层和上次比，按「是哪一层」比，不按走到它的那条路比：同一个弹窗换了内容（勾了选项、换了排序、选了版本）的样子，
+ * 先走到哪一种、从哪条路走到，每次都不一样（同样的内容只走一遍，一层最多走 MAX_SAME_LAYER 种），按路比就总报「走不到了」。
+ * 哪一层：路的最后一段（弹窗、抽屉、有标题的菜单看标题；没标题的菜单再带上点开它的那个按钮），版本号抹掉（跟着网络变）。
+ * 返回 Map(哪一层 → { path: 第一次看到它的那条路, items: 这一层各种样子里能点的合在一起 })
+ */
+function byLayer(list) {
+  const out = new Map();
+  for (const [name, items] of Object.entries(list || {})) {
+    // 最后一个「 → 弹窗「」（或开头的）就是这一层；标题里自己也可能有「 → 」（「1.20.1 → 1.21.1」这种换版本的确认框）、
+    // 套着「」（「改成「全部版本」之前看一下」），不能按「 → 」切，也不能按「」配对
+    let at = -1;
+    for (const mm of name.matchAll(/(?:^| → )(?=(?:弹窗|抽屉|菜单)「)/g)) at = mm.index + mm[0].length;
+    const last = at >= 0 ? name.slice(at) : name;
+    const opener = at > 0 ? name.slice(0, at).replace(/ → $/, '').split(' → ').pop() : '';
+    const id = (/「」$/.test(last) ? `${opener} → ${last}` : last).replace(/\d+(?:\.\d+)+/g, '#');
+    if (!out.has(id)) out.set(id, { path: name, items: new Set() });
+    for (const x of items) out.get(id).items.add(x);
+  }
+  return out;
+}
 const SAME_LABEL_MAX = 3; // 列表里一样的按钮（每行一个的「打开」「禁用」）点几个就够了
 
 function seed(root) {
@@ -81,31 +112,48 @@ function seed(root) {
   for (const j of ['a.jar', 'b.jar', 'c.jar.disabled']) mk(path.join(game, 'versions', 'ModP', 'mods', j));
   mk(path.join(game, 'versions', 'ModP', 'saves', 'World', 'level.dat'));
   mk(path.join(game, 'saves', 'Shared', 'level.dat'));
-  mk(path.join(data, 'config.json'), JSON.stringify({ disclaimerAccepted: require('./editions').DISCLAIMER, setupDone: true, tips: { noJava: true, panHint: { runs: 3 } }, language: 'zh-CN', gameDir: game, selectedVersion: 'ModP', versionSettings: { ModP: { isolation: 'on' } } }));
+  mk(path.join(data, 'config.json'), JSON.stringify({ disclaimerAccepted: require('./editions').DISCLAIMER, setupDone: true, tips: { noJava: true, panHint: { runs: 3 } }, language: 'zh-CN', gameDir: game, selectedVersion: PROFILE, versionSettings: { ModP: { isolation: 'on' } } }));
   mk(path.join(data, 'accounts.json'), JSON.stringify({ accounts: [{ id: 'a1', type: 'offline', name: 'WalkPlayer', uuid: '00000000000000000000000000000001' }], selected: 'a1' }));
   return { data, game };
 }
 
 
 async function open(name) {
-  const port = await freePort();
-  let root = path.join(BASE, 'walk', `${name.replace(/:/g, '-')}-${port}`);
-  // 端口可能和上一次一样（上一次的文件夹还被没退完的子进程占着）：多等几次，还是删不掉就换个名字（rc16：以前直接 EPERM，走查中途退出）
-  await fs.promises.rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 }).catch(() => { root = `${root}-${Date.now()}`; });
-  const { data, game } = seed(root);
-  const child = spawn(ELECTRON, ['-r', path.join(__dirname, 'walk-hook.js'), `--remote-debugging-port=${port}`, ...NO_THROTTLE, '.'], {
-    cwd: REPO, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true,
-    env: { ...process.env, AURORA_DATA_DIR: data, AURORA_GAME_DIR: game, AURORA_TEST_TRASH: path.join(root, 'fake-trash'), AURORA_SHOT_DIR: path.join(root, 'shots'), AURORA_SHOT_PAGES: '-#start', AURORA_SHOT_KEEP: '1', AURORA_SHOT_DELAY: '1500', AURORA_WALK_NET: NET },
-  });
   const mainLog = [];
   const onLog = (buf) => { for (const line of String(buf).split(/\r?\n/)) if (/^\[ipc:/.test(line)) mainLog.push(line.slice(0, 240)); };
-  child.stdout.on('data', onLog); child.stderr.on('data', onLog);
+  // 偶尔会连不上调试端口（挑好的空闲端口在程序启动前被别的程序占了，程序照常打开、只是没有调试端口；一次就让整个走查一条结果都没有）：
+  // 换个端口、换个文件夹重来，最多三次（杀掉的那个可能还没退完，占着原来的文件夹）
+  let root = null;
+  let child = null;
   let page = null;
-  for (let i = 0; i < 120 && !page; i++) {
-    try { const l = await (await fetch(`http://127.0.0.1:${port}/json`)).json(); page = l.find((t) => t.type === 'page' && !/devtools/.test(t.url)); } catch { /* 还没起来 */ }
-    await sleep(500); // pitfall-ok：轮询里两次查看之间的间隔
+  for (let attempt = 0; attempt < 3 && !page; attempt++) {
+    const port = await freePort();
+    root = path.join(BASE, 'walk', `${name.replace(/:/g, '-')}-${port}`);
+    // 端口可能和上一次一样（上一次的文件夹还被没退完的子进程占着）：多等几次，还是删不掉就换个名字（rc16：以前直接 EPERM，走查中途退出）
+    await fs.promises.rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 }).catch(() => { root = `${root}-${Date.now()}`; });
+    const { data, game } = seed(root);
+    const me = spawn(ELECTRON, ['-r', path.join(__dirname, 'walk-hook.js'), `--remote-debugging-port=${port}`, ...NO_THROTTLE, '.'], {
+      cwd: REPO, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true,
+      env: { ...process.env, AURORA_DATA_DIR: data, AURORA_GAME_DIR: game, AURORA_TEST_TRASH: path.join(root, 'fake-trash'), AURORA_SHOT_DIR: path.join(root, 'shots'), AURORA_SHOT_PAGES: '-#start', AURORA_SHOT_KEEP: '1', AURORA_SHOT_DELAY: '1500', AURORA_WALK_NET: NET },
+    });
+    child = me;
+    me.stdout.on('data', onLog); me.stderr.on('data', onLog);
+    let exited = false;
+    me.once('exit', () => { exited = true; });
+    const giveUp = Date.now() + 60000;
+    while (!page && !exited && Date.now() < giveUp) {
+      try { const l = await (await fetch(`http://127.0.0.1:${port}/json`, { signal: AbortSignal.timeout(3000) })).json(); page = l.find((t) => t.type === 'page' && !/devtools/.test(t.url)); } catch { /* 还没起来 */ }
+      if (!page) await sleep(500); // pitfall-ok：轮询里两次查看之间的间隔
+    }
+    if (!page) {
+      const died = exited;
+      const gone = new Promise((res) => { if (exited) res(); else me.once('exit', res); });
+      try { me.kill(); } catch { /* 已退出 */ }
+      await Promise.race([gone, sleep(10000)]);
+      console.log(`    （${name}：调试端口 ${port} 连不上${died ? '，程序自己退出了' : ''}，换一个重来）`);
+    }
   }
-  if (!page) { child.kill(); throw new Error('连不上调试端口'); }
+  if (!page) throw new Error('连不上调试端口（换了三次端口）');
   const ws = new WebSocket(page.webSocketDebuggerUrl);
   await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; });
   let id = 0; const wait = new Map();
@@ -149,14 +197,19 @@ async function open(name) {
   } };
 }
 
+// 按钮上写的是现在的状态、会自己变的，换成固定的名字：主页的背景场景按钮写着现在的场景、时段、天气（时段跟着真实时间，天气随机），
+// 不换的话每变一次就被当成新按钮再点一遍，记下的层名字也和上次对不上（白天走的和晚上走的就不一样）
+const FIXED_LABEL = { '.scene-pill': '背景场景' };
 // 可以点的东西：页面内可见、没禁用
 const LIST = (page) => `(() => {
   const root = document.getElementById('page-${page}');
   if (!root) return [];
+  const fixed = ${JSON.stringify(FIXED_LABEL)};
   const els = [...root.querySelectorAll('button, [role=button], a[href], input[type=checkbox], input[type=radio], label.toggle, .choice, .menu-item, .vchip')];
   return els.filter((e) => e.offsetParent !== null && !e.disabled && !e.closest('.modal-back') && !e.closest('.set-nav')).map((e, i) => { // 设置页的分类和搜索不点：分类切换另有测试（settings-layout.js），点了会换到别的分类
     e.setAttribute('data-walk', String(i));
-    const label = (e.innerText || e.getAttribute('aria-label') || e.getAttribute('data-tip') || e.title || e.placeholder || e.type || e.tagName).replace(/\\s+/g, ' ').trim().slice(0, 50);
+    const f = Object.keys(fixed).find((s) => e.matches(s));
+    const label = f ? fixed[f] : (e.innerText || e.getAttribute('aria-label') || e.getAttribute('data-tip') || e.title || e.placeholder || e.type || e.tagName).replace(/\\s+/g, ' ').trim().slice(0, 50);
     return { i, label, tag: e.tagName.toLowerCase() };
   });
 })()`;
@@ -197,12 +250,23 @@ const IN_WIZARD = `(() => { const m = [...document.querySelectorAll('.modal-back
 // 界面检查：最上面那一层、页面本身
 const UI_TOP = collectAt(TOP_EL);
 const UI_PAGE = COLLECT;
-const RESET = `(() => {
+// 返回 2：选中的配置换回来了，页面要重画
+const RESET = `(async () => {
   try { if (A.closeDrawers) A.closeDrawers(); if (A.logs && A.logs.close) A.logs.close(); } catch (e) { /* 没开着 */ }
   document.querySelectorAll('.modal-back, .drawer-back, .toast, .popover, .menu-pop').forEach((m) => m.remove());
   document.body.click();
   for (const t of A.state.tasks.values()) if (t.status === 'running') A.api('tasks:cancel', t.id);
-  return 1;
+  // 点到过「切换游戏配置」、配置卡片这类的，选中的配置就换了，后面的层跟着变：名字里带配置名（「一键 Debug · ModP」
+  // 「添加 Mod 到 ModP」、修复页的配置抽屉），里面的按钮也不一样（一键 Debug 只有装了加载器的配置有）。
+  // 走到哪一步才换是看点的顺序，每次都不一样，和上次记下的层就对不上：每次点之前换回一开始那个
+  const want = ${JSON.stringify(PROFILE)};
+  if (!A.state.installed.some((v) => v.id === want)) return 1;
+  let changed = false;
+  if (A.state.config.selectedVersion !== want) { await A.setConfig({ selectedVersion: want }); changed = true; }
+  // 修复页自己记着选的是哪个（一开始是列表第一个，列表按最近崩溃、最近玩过排，点过启动以后顺序会变）：也换回来
+  const rp = A.state.page === 'repair' && document.querySelector('#page-repair .rp-item.on');
+  if (rp && !rp.innerText.includes(want)) { A.go('repair', { versionId: want }); changed = true; }
+  return changed ? 2 : 1;
 })()`;
 const OUTCOME = `(() => {
   const modals = [...document.querySelectorAll('.modal-back:not(.closing) .modal')].map((m) => { const h = m.querySelector('h2'); return h ? h.innerText.trim().slice(0, 60) : '(没有标题)'; });
@@ -215,11 +279,12 @@ const OUTCOME = `(() => {
 async function walkPage(page) {
   const [pid, cat] = page.split(':');
   let app = await open(page);
-  const rec = { page, clicked: 0, deepClicks: 0, layers: 0, maxDepth: 0, skippedSame: 0, opened: [], layerList: {}, problems: [], ui: [], uiChecks: 0, total: 0 };
+  const rec = { page, clicked: 0, deepClicks: 0, layers: 0, maxDepth: 0, skippedSame: 0, reselected: 0, opened: [], layerList: {}, problems: [], ui: [], uiChecks: 0, total: 0 };
   const uiSeen = new Map(); // 界面毛病 → 记在 rec.ui 里的那一条
   const visitedSig = new Set(); // 走过的层（连内容一起算）
   const perLayer = new Map(); // 层 id → 往里走过几种内容
   const startedAt = Date.now();
+  const limit = limitOf(page);
   const go = async () => {
     await app.ev(`A.go(${JSON.stringify(pid)})`); await calm(app.ev, pid === 'download' ? 15000 : 8000);
     if (cat) { await app.ev(`(() => { const b = document.querySelector('#page-settings .set-cat[data-cat=${cat}]'); if (b) b.click(); return !!b; })()`); await calm(app.ev); }
@@ -247,6 +312,7 @@ async function walkPage(page) {
     return out || {};
   };
   const restart = async () => { await app.stop(); app = await open(page); await go(); };
+  const reset = async () => { if ((await app.ev(RESET)) === 2) { rec.reselected++; await settle(app.ev); } };
   /**
    * 从页面重新走到某一层：点页面上的那个按钮，再按顺序点每一层里写着那几个字的（同样的字第几个）。
    * 按字找、不按下标：前面点过的开关会被记住，再走一遍时那一层可能多出或少了几样，下标就对不上了（rc12 试跑时向导第 2 步以后走不进去就是这样）
@@ -255,7 +321,7 @@ async function walkPage(page) {
   // 自检报不出深处的问题。在向导里每次点之前等 0.6 秒，和人看一眼再点一样
   const humanPause = async () => { if ((await app.ev(IN_WIZARD)) === true) await sleep(600); }; // pitfall-ok：向导防连点是按时间算的，只能等够时间
   const replay = async (it, steps) => {
-    await app.ev(RESET);
+    await reset();
     if ((await app.ev("(document.querySelector('.page.active') || {}).id")) !== `page-${pid}`) await go();
     const again = keyed(await app.ev(LIST(pid))).find((x) => x.key === it.key);
     if (!again) return false;
@@ -294,7 +360,7 @@ async function walkPage(page) {
     const max = depth === 1 ? MAX_IN_MODAL : MAX_IN_DEEP;
     const order = layer.items.length <= max ? layer.items.map((_, i) => i) : [...Array(max - 4).keys(), ...[4, 3, 2, 1].map((k) => layer.items.length - k)];
     for (const n of order) {
-      if (Date.now() - startedAt > PAGE_LIMIT_MS) { rec.timedOut = true; return; }
+      if (Date.now() - startedAt > limit) { rec.timedOut = true; return; }
       const here = `${name} → ${layer.items[n]}`;
       try {
         if (!(await replay(it, steps))) return;
@@ -336,8 +402,8 @@ async function walkPage(page) {
       let progressed = false;
       while (rec.clicked < MAX_PER_PAGE) {
         if (app.isCrashed()) throw new Error('渲染进程崩溃');
-        if (Date.now() - startedAt > PAGE_LIMIT_MS) { rec.timedOut = true; break; }
-        await app.ev(RESET);
+        if (Date.now() - startedAt > limit) { rec.timedOut = true; break; }
+        await reset();
         const active = await app.ev("(document.querySelector('.page.active') || {}).id");
         if (active !== `page-${pid}`) await go();
         const list = await app.ev(LIST(pid));
@@ -393,11 +459,12 @@ async function walkPage(page) {
   for (const page of pages) {
     const rec = await walkPage(page);
     const key = keyOf(page); // 固定数据走的那一遍，记录分开
-    const shown = NET ? `${page}（${NET === 'fixture' ? '固定数据' : NET}）` : page;
+    const tags = [NET ? (NET === 'fixture' ? '固定数据' : NET) : '', PROFILE !== 'ModP' ? `在 ${PROFILE} 下` : ''].filter(Boolean);
+    const shown = tags.length ? `${page}（${tags.join('，')}）` : page;
     report.push(rec);
     console.log(`  ${shown.padEnd(9)} 刚打开可点 ${String(rec.total).padStart(3)}，点了 ${String(rec.clicked).padStart(3)}；往里走了 ${rec.layers} 层内容（最深第 ${rec.maxDepth} 层），里面点了 ${rec.deepClicks} 个；界面检查 ${rec.uiChecks} 次；一样的跳过 ${rec.skippedSame}，点了报错 ${rec.problems.length}`);
     for (const p of rec.problems) console.log(`    「${p.label}」${(p.crit || []).concat(p.errors || []).join(' | ').slice(0, 260)}`);
-    if (rec.timedOut) console.log(`    到了时限没走完（${Math.round(PAGE_LIMIT_MS / 1000)} 秒）`);
+    if (rec.timedOut) console.log(`    到了时限没走完（${Math.round(limitOf(page) / 60000)} 分钟）`);
     const ok = !rec.crashed;
     results.push({ id: 'walk', name: `按钮走查：${shown} 走完了（页面上点了 ${rec.clicked} 个；往里走了 ${rec.layers} 层内容、最深第 ${rec.maxDepth} 层、点了 ${rec.deepClicks} 个；点了报错 ${rec.problems.length} 个，只报告）`, ok, detail: rec.crashed ? JSON.stringify(rec.problems.slice(-1)) : '' });
     console.log(`${ok ? 'PASS' : 'FAIL'} [walk] ${results[results.length - 1].name}`);
@@ -410,14 +477,18 @@ async function walkPage(page) {
     if (UPDATE) known[key] = rec.ui.map((u) => u.problem).sort();
     results.push({ id: 'walk', name: `界面检查：${shown} 走到的每一步（${rec.uiChecks} 次）都没有新的溢出、截断、叠在一起、没居中、看不见的字${had.size ? `（看过的 ${had.size} 处不算）` : ''}`, ok: UPDATE || fresh.length === 0, detail: fresh.slice(0, 8).map((u) => `${u.problem}（点了「${u.after.slice(0, 80)}」之后）`).join('；') });
     console.log(`${results[results.length - 1].ok ? 'PASS' : 'FAIL'} [walk] ${results[results.length - 1].name}${fresh.length && !UPDATE ? ` — ${results[results.length - 1].detail.slice(0, 600)}` : ''}`);
-    // 走到的层：和上次比，少了哪一层、哪个能点的（只报告）
-    const before = oldLayers[key] || {};
+    // 走到的层：和上次比，少了哪一层、哪一层里少了哪个能点的（只报告）。到了时限的页面没走到的不算少了，只说走到了几层
+    const was = byLayer(oldLayers[key]);
+    const now = byLayer(rec.layerList);
     const lost = [];
-    for (const [name, items] of Object.entries(before)) {
-      if (!rec.layerList[name]) { lost.push(`走不到了：${name}`); continue; }
-      const miss = items.filter((x) => !rec.layerList[name].includes(x));
-      if (miss.length) lost.push(`${name} 里少了：${miss.join('、')}`);
+    let unreached = 0;
+    for (const [id, o] of was) {
+      const n = now.get(id);
+      if (!n) { if (rec.timedOut) unreached++; else lost.push(`走不到了：${id}（上次从这里走到：${o.path}）`); continue; }
+      const miss = [...o.items].filter((x) => !n.items.has(x));
+      if (miss.length) lost.push(`${id} 里少了：${miss.join('、')}`);
     }
+    if (unreached) console.log(`    这一页到了时限没走完：上次记着的 ${was.size} 层这次走到了 ${was.size - unreached} 层，没走到的不比`);
     if (lost.length) console.log(`    和上次比少了 ${lost.length} 处（只报告）：\n      ${lost.slice(0, 12).join('\n      ').slice(0, 1500)}`);
     if (UPDATE || !oldLayers[key]) { oldLayers[key] = rec.layerList; added = true; }
   }

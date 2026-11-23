@@ -426,7 +426,7 @@
           ? row('Azure 应用 Client ID', '用于正版登录，需要开启「允许公共客户端流」并获得 Minecraft API 权限', h('div.input-group',
             h('input.input.mono', { value: c.msClientId, placeholder: '未配置', style: { width: '300px', fontSize: '12px' }, spellcheck: 'false', onchange: (e) => set({ msClientId: e.target.value.trim() }) }),
             h('button.btn.sm.ghost.icon', { 'data-tip': '配置说明', onclick: () => A.clientIdDialog() }, icon('info', 16))))
-          : row('微软正版登录', '内部测试阶段暂未开放，请先使用离线账户', h('span.soon-tag.lg', '正在开发')));
+          : row('微软正版登录', '正在向微软申请，通过审核后开放；现在请先使用离线账户或外置登录', h('span.soon-tag.lg', { 'data-tip': A.MS_PENDING }, '正在申请')));
     G.about = group('关于', 'info',
         row(h('span', { id: 'aboutVersion', onclick: () => A.debugMenu.versionClick(), style: { userSelect: 'none' } }, `${A.BRAND.name}${window.I18N.getLang() === 'en' ? ' ' : `（${A.BRAND.zh}）`}${state.info.version}`, h('span', state.info.edition === 'public' ? '（公开版）' : '（内部版）')), `Electron ${state.info.electron} · ${state.info.platform}-${state.info.arch} · ${state.info.cpu}`,
           h('button.btn.sm', { onclick: () => api('shell:open', state.info.dataDir) }, icon('folder', 14), '数据目录')),

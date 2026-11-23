@@ -447,7 +447,7 @@
   window.addEventListener('resize', () => closePopover());
   window.addEventListener('blur', () => closePopover());
 
-  /** 菜单：items = [{label, icon, sub, onClick, danger, on, img} | '-' | {head}] */
+  /** 菜单：items = [{label, icon, sub, onClick, danger, on, img, disabled, tip} | '-' | {head}]。disabled：变灰（还没开放的入口），点了照样调 onClick（告诉玩家为什么不能用）；tip：鼠标停上去的说明 */
   function menu(anchor, items, opts = {}) {
     const list = h('div.menu');
     for (const it of items) {
@@ -455,7 +455,9 @@
       if (it === '-') { list.appendChild(h('div.menu-sep')); continue; }
       if (it.head) { list.appendChild(h('div.menu-head', it.head)); continue; }
       list.appendChild(h('div', {
-        class: `menu-item ${it.danger ? 'danger' : ''} ${it.on ? 'on' : ''}`,
+        class: `menu-item ${it.danger ? 'danger' : ''} ${it.on ? 'on' : ''} ${it.disabled ? 'soon' : ''}`,
+        'aria-disabled': it.disabled ? 'true' : null,
+        'data-tip': it.tip || null,
         'data-simple-off': it.simpleOff ? '' : null, // 简洁模式下变灰（simplemode.js）
         'data-net': it.net ? '' : null, // 离线时变灰（offline.js）
         onclick: () => { closePopover(); if (it.onClick) it.onClick(); },

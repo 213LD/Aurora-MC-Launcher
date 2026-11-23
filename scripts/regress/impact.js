@@ -24,10 +24,11 @@ const RULES = [
   [/^src\/renderer\/js\/(tasks|pages\/tasks|pages\/planner)/, ['rc3-ui.js --quick', 'rc12-ui.js'], '任务中心、Mod 配置器'],
   [/^src\/(renderer\/js\/savesui\.js|main\/ipc\/backup\.js)/, ['rc12-ui.js'], '存档与备份'],
   [/^src\/renderer\/js\/(skin|pages\/skins|pages\/accounts)/, ['rc3-ui.js --quick', 'rc4-ui.js --quick'], '皮肤、账户'],
+  [/^src\/renderer\/js\/(pages\/(accounts|settings)|base\/(core|ui))\.js$/, ['ms-pending-ui.js'], '微软正版登录还在申请时的入口（标签、灰色的菜单项、说明）'],
   [/^src\/renderer\/js\/(modkit|pages\/repair|pages\/mods)/, ['issue-layout.js'], '问题卡片'],
   [/^src\/main\/(ipc|preload|engine\/(fileops|zip|nbt|net|downloader))/, ['robust-ui.js'], '接口、文件和网络引擎：真实窗口里的坏数据和坏接口'],
   // 测试脚本自己改了：跑它自己
-  [/^scripts\/regress\/(scene-new|issue-layout|settings-layout|rc3-ui|rc4-ui|rc6-ui|rc8-ui|rc9-ui|rc11-ui|rc12-ui|rc14-ui|rc15-ui|rc16-ui|foreign-ui|brand-ui|ui)\.js$/, null, '改了这个测试脚本'],
+  [/^scripts\/regress\/(scene-new|issue-layout|settings-layout|rc3-ui|rc4-ui|rc6-ui|rc8-ui|rc9-ui|rc11-ui|rc12-ui|rc14-ui|rc15-ui|rc16-ui|foreign-ui|brand-ui|ms-pending-ui|ui)\.js$/, null, '改了这个测试脚本'],
   [/^scripts\/regress\/(robust-ui|cdp|sandbox-hook|sandbox-run|pages)\.js$/, ['settings-layout.js', 'issue-layout.js', 'rc8-ui.js --quick'], '测试的公共部分改了，挑几个用到它的跑一遍'],
 ];
 
@@ -83,6 +84,8 @@ function scriptsFor(files) {
   const walk = walkPagesFor(files);
   if (walk.pages.length) list.push({ script: 'walk.js', args: [walk.pages.join(',')], why: walk.why });
   // 下载页走两遍（rc13）：上面那遍是真联网（真实数据的样子、网慢网断），这遍用固定数据（每次一样，还有超长名字、空结果、出错、慢回答）
+  const byProfile = require('./pages').BY_PROFILE.filter((p) => walk.pages.includes(p));
+  if (byProfile.length) list.push({ script: 'walk.js', args: [byProfile.join(','), '--profile=Vanilla'], why: ['这几页跟着选中的配置变：再在纯原版配置下走一遍（没有加载器、没有一键 Debug）'] });
   if (walk.pages.includes('download')) list.push({ script: 'walk.js', args: ['download', '--net=fixture'], why: ['下载页再用固定数据走一遍：内容不跟着网络变，故意放了真实数据里不一定碰得到的极端情况'] });
   if (files.some((f) => /^scripts\/regress\/(walk|snapshot-collect)\.js$/.test(f))) list.unshift({ script: 'walk.js', args: ['--selftest'], why: ['走查或界面检查改了：先确认它真的查得出来'] });
   return list;

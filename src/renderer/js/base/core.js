@@ -221,11 +221,12 @@
 
   /**
    * 功能开关
-   * msLogin：微软正版登录。内部测试阶段还没有通过审核的 Azure 应用，入口显示为「正在开发」；
+   * msLogin：微软正版登录。Azure 应用还在申请、没通过审核，入口都标「正在申请」，鼠标停上去、点一下都给出 MS_PENDING 这段说明；
    *          登录流程本身（auth/microsoft.js，设备代码流）已实现，拿到 Client ID 后改为 true 即可。
    */
   const FEATURES = { msLogin: false };
-  const msDevNotice = () => A.toast({ level: 'info', text: '微软正版登录正在开发中，内部测试阶段请先使用离线账户' });
+  const MS_PENDING = '微软要求第三方启动器先在 Azure 注册应用、通过审核，才能用微软账户登录 Minecraft。申请正在进行，通过后会在更新里开放；在那之前可以先用离线账户或外置登录。';
+  const msPendingNotice = () => A.toast({ level: 'info', title: '微软正版登录正在申请', text: MS_PENDING, duration: 9000 });
 
   const PROFILE_TYPES = {
     vanilla: { name: t('term.vanilla'), cls: 'ok' },
@@ -356,7 +357,7 @@
     api, apiPending: () => pending, listen, h, $, $$, clear, mount, append, icon, ICONS, t, BRAND, cmpMc: window.MCVER.cmpMc,
     fmtBytes, fmtSpeed, fmtDate, fmtRelative, fmtNum, noTr, fmtEta, fmtMem, debounce,
     nm: window.I18N.nm, nmJoin: window.I18N.nmJoin, safeName: window.PATHRULES.safeName, cutChars: window.PATHRULES.cutChars, nameProblem: window.PATHRULES.problemText,
-    LOADERS, TYPE_NAMES, PROFILE_TYPES, LEVELS, level, levelIcon, FEATURES, msDevNotice, displayName, fmtDuration, versionSub,
+    LOADERS, TYPE_NAMES, PROFILE_TYPES, LEVELS, level, levelIcon, FEATURES, MS_PENDING, msPendingNotice, displayName, fmtDuration, versionSub,
     bus, emit, on, state, refreshInstalled, refreshAccounts, refreshJavas, setConfig, adoptConfig, configMatters, pageRefresher, currentAccount, currentVersion,
     pages: {},
   };
