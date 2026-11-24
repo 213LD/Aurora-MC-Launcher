@@ -24,11 +24,11 @@ const RULES = [
   [/^src\/renderer\/js\/(tasks|pages\/tasks|pages\/planner)/, ['rc3-ui.js --quick', 'rc12-ui.js'], '任务中心、Mod 配置器'],
   [/^src\/(renderer\/js\/savesui\.js|main\/ipc\/backup\.js)/, ['rc12-ui.js'], '存档与备份'],
   [/^src\/renderer\/js\/(skin|pages\/skins|pages\/accounts)/, ['rc3-ui.js --quick', 'rc4-ui.js --quick'], '皮肤、账户'],
-  [/^src\/renderer\/js\/(pages\/(accounts|settings)|base\/(core|ui))\.js$/, ['ms-pending-ui.js'], '微软正版登录还在申请时的入口（标签、灰色的菜单项、说明）'],
+  [/^(src\/renderer\/js\/(pages\/(accounts|settings|skins)|base\/(core|ui)|skinui|skinview)\.js|src\/main\/core\/(auth\/(accounts|microsoft)|skins)\.js|src\/main\/ipc\/accounts\.js)$/, ['ms-login-ui.js'], '微软正版登录入口、设备码登录流程、自定义 Client ID 与正版皮肤同步预览'],
   [/^src\/renderer\/js\/(modkit|pages\/repair|pages\/mods)/, ['issue-layout.js'], '问题卡片'],
   [/^src\/main\/(ipc|preload|engine\/(fileops|zip|nbt|net|downloader))/, ['robust-ui.js'], '接口、文件和网络引擎：真实窗口里的坏数据和坏接口'],
   // 测试脚本自己改了：跑它自己
-  [/^scripts\/regress\/(scene-new|issue-layout|settings-layout|rc3-ui|rc4-ui|rc6-ui|rc8-ui|rc9-ui|rc11-ui|rc12-ui|rc14-ui|rc15-ui|rc16-ui|foreign-ui|brand-ui|ms-pending-ui|ui)\.js$/, null, '改了这个测试脚本'],
+  [/^scripts\/regress\/(scene-new|issue-layout|settings-layout|rc3-ui|rc4-ui|rc6-ui|rc8-ui|rc9-ui|rc11-ui|rc12-ui|rc14-ui|rc15-ui|rc16-ui|foreign-ui|brand-ui|ms-login-ui|ui)\.js$/, null, '改了这个测试脚本'],
   [/^scripts\/regress\/(robust-ui|cdp|sandbox-hook|sandbox-run|pages)\.js$/, ['settings-layout.js', 'issue-layout.js', 'rc8-ui.js --quick'], '测试的公共部分改了，挑几个用到它的跑一遍'],
 ];
 

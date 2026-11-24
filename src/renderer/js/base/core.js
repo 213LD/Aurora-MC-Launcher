@@ -221,10 +221,9 @@
 
   /**
    * 功能开关
-   * msLogin：微软正版登录。Azure 应用还在申请、没通过审核，入口都标「正在申请」，鼠标停上去、点一下都给出 MS_PENDING 这段说明；
-   *          登录流程本身（auth/microsoft.js，设备代码流）已实现，拿到 Client ID 后改为 true 即可。
+   * msLogin：微软正版登录。已内置通过审核的 Azure 应用 Client ID（auth/microsoft.js，设备代码流）。
    */
-  const FEATURES = { msLogin: false };
+  const FEATURES = { msLogin: true };
   const MS_PENDING = '微软要求第三方启动器先在 Azure 注册应用、通过审核，才能用微软账户登录 Minecraft。申请正在进行，通过后会在更新里开放；在那之前可以先用离线账户或外置登录。';
   const msPendingNotice = () => A.toast({ level: 'info', title: '微软正版登录正在申请', text: MS_PENDING, duration: 9000 });
 

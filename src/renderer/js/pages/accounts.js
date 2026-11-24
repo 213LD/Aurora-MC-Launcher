@@ -21,7 +21,7 @@
           h('button', { class: `btn ${msReady() ? '' : 'primary'}`, onclick: addOffline }, icon('user', 16), '离线账户'),
           h('button.btn', { onclick: () => addYgg(), 'data-net': '' }, icon('globe', 16), '外置登录'),
           msReady()
-            ? h('button.btn.primary', { onclick: addMicrosoft }, A.msLogo(15), '微软登录')
+            ? h('button.btn.primary', { onclick: addMicrosoft, 'data-net': '' }, A.msLogo(15), '微软登录')
             : h('button.btn.dev-soon', { onclick: A.msPendingNotice, 'data-tip': A.MS_PENDING }, A.msLogo(15), '微软登录', h('span.soon-tag', '正在申请')))),
       gridEl));
   }
@@ -45,8 +45,8 @@
           cur ? null : h('button.btn.sm.primary', { onclick: () => api('accounts:select', a.id) }, '使用'),
           h('button.btn.sm', { onclick: () => A.skinDrawer(a) }, icon('palette', 14), '皮肤'),
           ms || ygg ? h('button.btn.sm', { onclick: (e) => refresh(a, e.currentTarget), 'data-net': '' }, icon('refresh', 14), '刷新') : null,
-          ms && a.needRelogin ? h('button.btn.sm', { onclick: addMicrosoft }, '重新登录') : null,
-          ygg && a.needRelogin ? h('button.btn.sm', { onclick: () => addYgg(a) }, '重新登录') : null,
+          ms && a.needRelogin ? h('button.btn.sm', { onclick: addMicrosoft, 'data-net': '' }, '重新登录') : null,
+          ygg && a.needRelogin ? h('button.btn.sm', { onclick: () => addYgg(a), 'data-net': '' }, '重新登录') : null,
           h('button.btn.sm.icon.ghost', { 'data-tip': '复制 UUID', onclick: () => A.copy(a.uuid) }, icon('copy', 14)),
           h('button.btn.sm.icon.ghost', { 'data-tip': '删除账户', onclick: () => remove(a) }, icon('trash', 14))));
     });
@@ -173,27 +173,41 @@
   // ── 微软账户 ──
   async function addMicrosoft() {
     if (!msReady()) return A.msPendingNotice();
-    if (!(state.config.msClientId || '').trim()) return clientIdDialog(addMicrosoft);
+    if (A.offline && !A.offline.check()) return;
     const body = h('div', h('div.row', { style: { justifyContent: 'center', padding: '30px' } }, h('span.spinner.lg')));
     let cancelled = false;
+    let active = true;
+    let off = null;
     const m = A.modal({
       title: '使用微软账户登录',
       icon: h('div.modal-ico', { style: { background: 'var(--surface-2)' } }, A.msLogo(20)),
       size: 'md',
       body,
       actions: [{ label: '取消', kind: 'ghost' }],
-      onClose: () => { cancelled = true; api('accounts:msCancel').catch(() => {}); },
+      onClose: () => {
+        cancelled = true;
+        if (off) { off(); off = null; }
+        if (active) { active = false; api('accounts:msCancel').catch(() => {}); }
+      },
     });
     let dc;
     try {
       dc = await api('accounts:msStart');
     } catch (e) {
+      active = false;
       if (cancelled) return;
       A.mount(body, A.alert({ level: 'crit', text: e.message }),
-        h('p.faint', { style: { fontSize: '12.5px' } }, '请检查网络连接，或在设置中确认 Client ID 正确且已开启「允许公共客户端流」。'));
-      m.setActions([{ label: '修改 Client ID', kind: 'ghost', onClick: () => { clientIdDialog(addMicrosoft); } }, { label: '关闭', kind: '' }]);
+        h('p.faint', { style: { fontSize: '12.5px' } }, '请检查网络连接；如果设置了自定义 Client ID，请确认它正确且已开启「允许公共客户端流」。'));
+      m.setActions([
+        { label: '修改 Client ID', kind: 'ghost', onClick: () => { setTimeout(() => clientIdDialog(addMicrosoft), 50); } },
+        { label: '重试', kind: 'primary', onClick: () => { setTimeout(addMicrosoft, 50); } },
+        { label: '关闭', kind: '' },
+      ]);
       return;
     }
+    if (cancelled) { active = false; api('accounts:msCancel').catch(() => {}); return; }
+    // 自动把设备码放进剪贴板，失败（例如无焦点）不打断登录流程
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(dc.userCode).catch(() => {});
     const step = h('div.row', { style: { justifyContent: 'center', marginTop: '16px', color: 'var(--text-2)', fontSize: '13px' } }, h('span.spinner'), h('span', '等待你在浏览器中完成登录…'));
     A.mount(body,
       h('ol.steps',
@@ -205,42 +219,44 @@
         h('button.btn.primary', { onclick: () => { A.copy(dc.userCode); api('shell:external', dc.verificationUri); } }, icon('external', 16), '复制代码并打开登录页'),
         h('button.btn.ghost', { onclick: () => A.copy(dc.userCode) }, icon('copy', 16), '仅复制')),
       step);
-    const off = A.listen('accounts:msStep', (s) => { if (step.lastChild) step.lastChild.textContent = s; });
+    off = A.listen('accounts:msStep', (s) => { if (step.lastChild) step.lastChild.textContent = s; });
     try {
       const acc = await api('accounts:msWait');
-      off();
+      active = false;
+      if (off) { off(); off = null; }
       if (cancelled) return;
       m.close();
       A.toast({ level: 'ok', title: '登录成功', text: `欢迎回来，${A.nm(acc.name)}！` });
     } catch (e) {
-      off();
+      active = false;
+      if (off) { off(); off = null; }
       if (cancelled || e.cancelled) return;
       A.mount(body, A.alert({ level: 'crit', text: e.message }));
-      m.setActions([{ label: '重试', kind: 'primary', onClick: () => { addMicrosoft(); } }, { label: '关闭', kind: 'ghost' }]);
+      m.setActions([{ label: '重试', kind: 'primary', onClick: () => { setTimeout(addMicrosoft, 50); } }, { label: '关闭', kind: 'ghost' }]);
     }
   }
 
   function clientIdDialog(after) {
-    const input = h('input.input.mono', { value: state.config.msClientId || '', placeholder: '00000000-0000-0000-0000-000000000000', spellcheck: 'false' });
+    const input = h('input.input.mono', { value: state.config.msClientId || '', placeholder: '留空使用内置默认', spellcheck: 'false' });
     A.modal({
       title: '配置微软登录',
-      subtitle: '正版登录需要一个 Azure 应用的 Client ID',
+      subtitle: '启动器已内置通过审核的 Azure 应用，留空即使用内置默认；也可以填写自定义 Client ID',
       icon: 'key',
       size: 'md',
       body: h('div',
-        h('p.muted', { style: { marginTop: 0, fontSize: '13px' } }, '微软要求第三方启动器使用自己的 Azure 应用进行登录。只需配置一次：'),
+        h('p.muted', { style: { marginTop: 0, fontSize: '13px' } }, '一般玩家无需修改这里。如需使用自己的 Azure 应用，只需配置一次：'),
         h('ol.steps',
           h('li', h('span', '打开 ', h('a', { onclick: () => api('shell:external', 'https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade') }, 'Azure 门户 → 应用注册'), '，新建注册，账户类型选择「仅个人 Microsoft 账户」')),
           h('li', '在「身份验证」中开启「允许公共客户端流」'),
           h('li', h('span', '复制「应用程序(客户端) ID」，并在 ', h('a', { onclick: () => api('shell:external', 'https://aka.ms/mce-reviewappid') }, 'aka.ms/mce-reviewappid'), ' 提交申请 Minecraft API 权限（审核通过后即可正常登录）'))),
-        h('div.field', { style: { marginTop: '16px' } }, h('label', 'Client ID'), input, h('div.hint', '也可以随时在「设置 → 微软登录」中修改'))),
+        h('div.field', { style: { marginTop: '16px' } }, h('label', 'Client ID'), input, h('div.hint', '留空即恢复内置默认；也可以随时在「设置 → 微软登录」中修改'))),
       actions: [
         { label: '取消', kind: 'ghost' },
         {
           label: '保存并继续', kind: 'primary',
           onClick: async () => {
             const v = input.value.trim();
-            if (!/^[0-9a-f-]{32,36}$/i.test(v)) { A.toast({ level: 'warn', text: 'Client ID 格式不正确' }); return false; }
+            if (v && !/^[0-9a-f-]{32,36}$/i.test(v)) { A.toast({ level: 'warn', text: 'Client ID 格式不正确' }); return false; }
             await A.setConfig({ msClientId: v });
             if (after) setTimeout(after, 50);
             return true;

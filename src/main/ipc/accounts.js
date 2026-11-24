@@ -11,7 +11,10 @@ const { handle, send, startTask } = require('./bus');
 
 function register() {
   // ── 账户 ──
-  handle('accounts:list', () => accounts.list());
+  handle('accounts:list', () => {
+    accounts.syncMissingMicrosoftSkins(() => send('accounts:changed'));
+    return accounts.list();
+  });
   handle('accounts:addOffline', async (name, uuid) => { const r = await accounts.addOffline(name, uuid); send('accounts:changed'); return r; });
   // 外置登录（1.8.0）：密码只经过这一次调用，不写日志、不保存
   handle('accounts:yggLogin', async (opts) => { const r = await accounts.yggLogin(opts); if (r.account) send('accounts:changed'); return r; });
@@ -38,7 +41,11 @@ function register() {
   // MC 百科中文信息（实验性）：IPC 在 core/mcmod.js 里注册。公开版换成概念演示的替身（src/edition/public），那边什么都不注册
   mcmod.register(handle, { config, versions, mods, startTask, send });
   // 皮肤中心
-  handle('skins:libraryAll', () => skins.libraryAll());
+  handle('skins:libraryAll', async () => {
+    const p = accounts.syncMissingMicrosoftSkins(() => send('accounts:changed'));
+    if (p) await p;
+    return skins.libraryAll();
+  });
   handle('skins:libraryUpdate', (hash, patch) => skins.libraryUpdate(hash, patch || {}));
   handle('skins:libraryGroup', (q) => skins.libraryGroup(q || {}));
   handle('skins:scanFolder', (dir) => skins.scanFolder(String(dir || '')));
@@ -47,7 +54,8 @@ function register() {
     const acc = accounts.find(id);
     const tex = acc && acc.id === id ? await skins.readTexture(acc, 'skin') : null;
     if (!tex) throw new Error('这个账户还在用默认皮肤');
-    return skins.libraryAdd({ png: tex.buf, model: acc.custom.model, name: `${acc.name} 的皮肤` });
+    const model = (acc.custom || acc.skinCache || {}).model || 'classic';
+    return skins.libraryAdd({ png: tex.buf, model, name: `${acc.name} 的皮肤` });
   });
 }
 

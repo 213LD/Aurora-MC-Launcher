@@ -13,6 +13,8 @@
   const MODEL = [{ value: 'classic', label: '经典（Steve）' }, { value: 'slim', label: '纤细（Alex）' }];
   const ALL = '\u0000all';
   const NONE = '\u0000none';
+  const MS_GROUP = '正版账户皮肤';
+  const groupLabel = (g) => (g === MS_GROUP ? g : A.nm(g));
 
   let root;
   const st = { items: null, groups: [], group: ALL, query: '', sel: null, walk: true, layer: true, busy: false };
@@ -199,7 +201,7 @@
       onclick: () => select(it.hash), onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(it.hash); } } },
     mini.el,
     h('div.skc-name', A.noTr(it.name)),
-    h('div.skc-meta', it.model === 'slim' ? '纤细' : '经典', it.group && st.group === ALL ? ` · ${A.nm(it.group)}` : ''));
+    h('div.skc-meta', it.model === 'slim' ? '纤细' : '经典', it.group && st.group === ALL ? ` · ${groupLabel(it.group)}` : ''));
   }
 
   function select(hash) {
@@ -217,7 +219,7 @@
     A.mount(groupsEl,
       chip(ALL, '全部', items.length),
       chip(NONE, '未分组', items.filter((x) => !x.group).length),
-      st.groups.map((g) => chip(g, A.nm(g), items.filter((x) => x.group === g).length, true)),
+      st.groups.map((g) => chip(g, groupLabel(g), items.filter((x) => x.group === g).length, true)),
       h('button.skc-chip.add', { onclick: addGroup }, icon('plus', 13), '新建分组'));
   }
 
@@ -242,7 +244,7 @@
     }
     const v = big();
     v.set({ url: it.url, model: it.model, cape: null, walk: st.walk, layer: st.layer });
-    const groupOpts = [{ value: '', label: '未分组' }, ...st.groups.map((g) => ({ value: g, label: A.nm(g) }))];
+    const groupOpts = [{ value: '', label: '未分组' }, ...st.groups.map((g) => ({ value: g, label: groupLabel(g) }))];
     A.mount(sideEl,
       h('div.sk-stage', v.el, h('div.sk-stage-tools',
         h('label.row', A.toggle(st.layer, (x) => { st.layer = x; renderSide(); }), '外层'),
@@ -289,7 +291,7 @@
     A.mount(root, page);
   }
 
-  function init() { build(); }
+  function init() { build(); A.on('accounts', A.pageRefresher('skins', load)); }
 
   A.pages.skins = { init, show: () => { renderAll(); load(); }, title: '皮肤中心' };
 })();

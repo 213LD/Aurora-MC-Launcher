@@ -14,11 +14,12 @@
   const MODEL = [{ value: 'classic', label: '经典（Steve）' }, { value: 'slim', label: '纤细（Alex）' }];
 
   function open(account) {
+    const texUrl = (u) => (typeof u === 'string' ? u.replace(/^http:\/\/(?!127\.0\.0\.1(?::|\/|$)|localhost(?::|\/|$))/i, 'https://') : u);
     const acc = () => state.accounts.accounts.find((a) => a.id === account.id) || account;
     const offline = account.type === 'offline';
     const st = { library: null, defaults: null, layer: true, walk: true, busy: false };
     const a0 = acc();
-    const view = A.skinView({ ...shown(a0), cape: a0.cape && a0.cape.url, size: 300 });
+    const view = A.skinView({ ...shown(a0), cape: texUrl(a0.cape && a0.cape.url), size: 300 });
     const body = h('div.sk-drawer');
     const d = A.drawer({ title: `${A.nm(account.name)} 的皮肤`, subtitle: offline ? '离线账户 · 皮肤只保存在这台电脑上' : account.type === 'yggdrasil' ? `外置登录 · ${A.nm((account.server || {}).name) || ''}` : '微软正版账户', body, width: 560, onClose: () => off() });
     const off = A.on('accounts', () => { if (document.body.contains(d.el)) render(); });
@@ -26,7 +27,7 @@
     function variant(a) { return a.skin && a.skin.variant === 'SLIM' ? 'slim' : 'classic'; }
     /** 预览里显示的皮肤：没有皮肤时显示默认皮肤（1.5.7 之前是空白）——装了原版游戏就用游戏自带的 Steve / Alex，没有就用启动器画的 */
     function shown(a) {
-      if (a.skin && a.skin.url) return { url: a.skin.url, model: variant(a) };
+      if (a.skin && a.skin.url) return { url: texUrl(a.skin.url), model: variant(a) };
       const kind = A.defaultSkinKind(a.uuid);
       const own = (st.defaults || []).find((x) => x.name === kind);
       return { url: own ? A.skinTools.dataUrl(own.png) : A.defaultSkin(kind), model: kind === 'alex' ? 'slim' : 'classic' };
@@ -129,7 +130,7 @@
 
     function render() {
       const a = acc();
-      view.set({ ...shown(a), cape: a.cape && a.cape.url, layer: st.layer, walk: st.walk });
+      view.set({ ...shown(a), cape: texUrl(a.cape && a.cape.url), layer: st.layer, walk: st.walk });
       const custom = !!(a.skin && a.skin.custom);
       const method = a.skinMethod || 'auto';
       const drop = h('div.sk-stage', view.el,

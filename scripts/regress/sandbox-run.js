@@ -54,11 +54,11 @@ function badResponse(mode, url) {
 
 const mode = process.env.AURORA_BADNET;
 if (mode) {
-  const answer = async (u) => {
+  const answer = async (u, opts) => {
     const url = u && u.url ? u.url : String(u);
     box.log.net.push(url.slice(0, 200));
     if (mode === 'hang') return new Promise(() => {}); // 一直不回答：要靠超时
-    if (mode === 'fixture') return require('./net-fixture').answer(url); // 固定的版本列表和加载器列表（界面快照量联网的弹窗用）
+    if (mode === 'fixture') return require('./net-fixture').answer(url, opts); // 固定的版本列表和加载器列表（界面快照量联网的弹窗用）
     return badResponse(mode, url);
   };
   net.fetch = answer;

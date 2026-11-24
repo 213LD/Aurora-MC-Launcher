@@ -105,9 +105,113 @@ function resources(u) {
   return null;
 }
 
+const zlib = require('zlib');
+const crcTab = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+function crc32(buf) {
+  let c = 0xffffffff;
+  for (let i = 0; i < buf.length; i++) c = crcTab[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+function pngChunk(type, data) {
+  const b = Buffer.alloc(12 + data.length);
+  b.writeUInt32BE(data.length, 0);
+  b.write(type, 4, 4, 'ascii');
+  data.copy(b, 8);
+  b.writeUInt32BE(crc32(b.subarray(4, 8 + data.length)), 8 + data.length);
+  return b;
+}
+function makeSolidPng(w, h, rgba) {
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4); ihdr[8] = 8; ihdr[9] = 6;
+  const raw = Buffer.alloc((w * 4 + 1) * h);
+  for (let y = 0; y < h; y++) {
+    const row = y * (w * 4 + 1);
+    raw[row] = 0;
+    for (let x = 0; x < w; x++) {
+      const p = row + 1 + x * 4;
+      raw[p] = rgba[0]; raw[p + 1] = rgba[1]; raw[p + 2] = rgba[2]; raw[p + 3] = rgba[3];
+    }
+  }
+  return Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), pngChunk('IHDR', ihdr), pngChunk('IDAT', zlib.deflateSync(raw)), pngChunk('IEND', Buffer.alloc(0))]);
+}
+const SKIN_64_PNG = makeSolidPng(64, 64, [66, 135, 245, 255]);
+const CAPE_64_PNG = makeSolidPng(64, 32, [220, 50, 50, 255]);
+
+let msSeq = 0;
+const msPolls = new Map();
+
+/** 微软设备码登录、Xbox Live、XSTS、Minecraft Services 与皮肤固定模拟接口 */
+function msAuth(u, opts) {
+  const body = String((opts && opts.body) || '');
+  if (u === 'https://textures.minecraft.net/texture/fixture-steve-64') return new Response(SKIN_64_PNG, { status: 200, headers: { 'content-type': 'image/png' } });
+  if (u === 'https://textures.minecraft.net/texture/fixture-cape-64') return new Response(CAPE_64_PNG, { status: 200, headers: { 'content-type': 'image/png' } });
+  if (/api\.minecraftservices\.com\/minecraft\/profile\/lookup\/name\/FixtureSteve$/i.test(u)) return json({ id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', name: 'FixtureSteve' });
+  if (/sessionserver\.mojang\.com\/session\/minecraft\/profile\/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/i.test(u)) {
+    const val = Buffer.from(JSON.stringify({
+      textures: {
+        SKIN: { url: 'http://textures.minecraft.net/texture/fixture-steve-64' },
+        CAPE: { url: 'http://textures.minecraft.net/texture/fixture-cape-64' },
+      },
+    })).toString('base64');
+    return json({ id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', name: 'FixtureSteve', properties: [{ name: 'textures', value: val }] });
+  }
+  if (/login\.microsoftonline\.com\/consumers\/oauth2\/v2\.0\/devicecode/.test(u)) {
+    const p = new URLSearchParams(body);
+    const cid = p.get('client_id') || '';
+    if (cid === 'bad-client-id') return json({ error: 'unauthorized_client', error_description: 'fixture bad client id' }, 400);
+    if (cid === '00000000-0000-0000-0000-000000000001') {
+      return json({ device_code: 'fx-slow', user_code: 'SLOW-0001', verification_uri: 'https://www.microsoft.com/link', expires_in: 60, interval: 1 });
+    }
+    const dc = `fx-dev-${++msSeq}`;
+    msPolls.set(dc, 0);
+    return json({ device_code: dc, user_code: 'FXMS-8888', verification_uri: 'https://www.microsoft.com/link', expires_in: 60, interval: 1 });
+  }
+  if (/login\.microsoftonline\.com\/consumers\/oauth2\/v2\.0\/token/.test(u)) {
+    const p = new URLSearchParams(body);
+    if (p.get('grant_type') === 'refresh_token') {
+      return json({ access_token: 'fx-ms-access-refreshed', refresh_token: 'fx-ms-refresh-2', expires_in: 3600 });
+    }
+    const dc = p.get('device_code') || '';
+    if (dc === 'fx-slow') return json({ error: 'authorization_pending' }, 400);
+    const n = (msPolls.get(dc) || 0) + 1;
+    msPolls.set(dc, n);
+    if (n < 2) return json({ error: 'authorization_pending' }, 400);
+    return json({ access_token: 'fx-ms-access', refresh_token: 'fx-ms-refresh', expires_in: 3600 });
+  }
+  if (/user\.auth\.xboxlive\.com\/user\/authenticate/.test(u)) {
+    return json({ Token: 'fx-xbl', DisplayClaims: { xui: [{ uhs: 'fxuhs' }] } });
+  }
+  if (/xsts\.auth\.xboxlive\.com\/xsts\/authorize/.test(u)) {
+    return json({ Token: 'fx-xsts', DisplayClaims: { xui: [{ uhs: 'fxuhs' }] } });
+  }
+  if (/api\.minecraftservices\.com\/authentication\/login_with_xbox/.test(u)) {
+    const jwt = `x.${Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 86400, xuid: '12345' })).toString('base64')}.y`;
+    return json({ access_token: jwt, expires_in: 86400 });
+  }
+  if (/api\.minecraftservices\.com\/minecraft\/profile/.test(u)) {
+    return json({
+      id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      name: 'FixtureSteve',
+      skins: [{ state: 'ACTIVE', url: 'http://textures.minecraft.net/texture/fixture-steve-64', variant: 'CLASSIC' }],
+      capes: [{ state: 'ACTIVE', url: 'http://textures.minecraft.net/texture/fixture-cape-64', alias: 'FixtureCape' }],
+    });
+  }
+  return null;
+}
+
 /** 这个地址该回答什么；没有准备的回答 404 */
-function answer(url) {
+function answer(url, opts) {
   const u = String(url);
+  const msa = msAuth(u, opts);
+  if (msa) return msa;
   const r = resources(u);
   if (r) return r;
   if (/version_manifest(_v2)?\.json/.test(u)) return json(MANIFEST);

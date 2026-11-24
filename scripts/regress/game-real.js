@@ -164,7 +164,11 @@ function msMock(st) {
   net.fetch = async (url, opts = {}) => {
     const u = String(url);
     st.calls.push(new URL(u).host + new URL(u).pathname);
-    if (u.includes('/oauth2/v2.0/devicecode')) return json({ device_code: 'dev', user_code: 'ABCD-1234', verification_uri: 'https://www.microsoft.com/link', expires_in: 60, interval: 1, message: '打开网页输入代码' });
+    if (u.includes('/oauth2/v2.0/devicecode')) {
+      st.dcBodies = st.dcBodies || [];
+      st.dcBodies.push(String(opts.body || ''));
+      return json({ device_code: 'dev', user_code: 'ABCD-1234', verification_uri: 'https://www.microsoft.com/link', expires_in: 60, interval: 1, message: '打开网页输入代码' });
+    }
     if (u.includes('/oauth2/v2.0/token')) {
       const body = String(opts.body || '');
       if (body.includes('refresh_token') && st.refreshBad) return json({ error: 'invalid_grant', error_description: 'expired' }, 400);
@@ -176,7 +180,11 @@ function msMock(st) {
     if (u.includes('xsts.auth.xboxlive.com')) return st.noXbox ? json({ XErr: 2148916233 }, 401) : json({ Token: 'xsts', DisplayClaims: { xui: [{ uhs: 'uhs1' }] } });
     if (u.includes('login_with_xbox')) return json({ access_token: jwt, expires_in: 86400 });
     if (u.includes('/entitlements/')) return json({ items: st.noGame ? [] : [{ name: 'game_minecraft' }, { name: 'product_minecraft' }] });
-    if (u.includes('/minecraft/profile')) return st.noGame ? json({ error: 'NOT_FOUND' }, 404) : json({ id: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', name: 'MsMock', skins: [{ state: 'ACTIVE', url: 'http://127.0.0.1:1/skin.png', variant: 'CLASSIC' }], capes: [] });
+    if (u.includes('/minecraft/profile')) return st.noGame ? json({ error: 'NOT_FOUND' }, 404) : json({ id: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', name: 'MsMock', skins: [{ state: 'ACTIVE', url: 'http://textures.minecraft.net/texture/mock-ms-skin', variant: 'CLASSIC' }], capes: [] });
+    if (u === 'https://textures.minecraft.net/texture/mock-ms-skin') {
+      const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAQ0lEQVR42u3PMQEAAAgDoJnc6BrDxwMNyDxNiYiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiI3mkBhQ0AAcvmB/gAAAAASUVORK5CYII=', 'base64');
+      return new Response(png, { status: 200, headers: { 'content-type': 'image/png' } });
+    }
     return real(url, opts);
   };
   return () => { net.fetch = real; };
@@ -669,20 +677,38 @@ const SCENARIOS = {
   async ms() {
     const dirs = setup('real-ms');
     const config = core('config');
-    config.set({ setupDone: true, disclaimerAccepted: require('./editions').DISCLAIMER, msClientId: 'test-client' });
-    const st = { calls: [] };
+    const msMod = core('auth/microsoft');
+    config.set({ setupDone: true, disclaimerAccepted: require('./editions').DISCLAIMER, msClientId: '' });
+    const st = { calls: [], dcBodies: [] };
     const undo = msMock(st);
     try {
       const accounts = core('auth/accounts');
+      const dcDef = await accounts.msStart();
+      check('account', '微软：未填自定义 Client ID 时自动使用内置默认 Client ID', dcDef && /ABCD/.test(dcDef.userCode || '') && (st.dcBodies[0] || '').includes(`client_id=${msMod.DEFAULT_CLIENT_ID}`), st.dcBodies[0]);
+      accounts.msCancel();
+      config.set({ msClientId: 'test-client' });
       const dc = await accounts.msStart();
-      check('account', '微软：拿到设备码', dc && /ABCD/.test(dc.userCode || JSON.stringify(dc)), dc && dc.userCode);
+      check('account', '微软：配置了自定义 Client ID 时优先使用自定义值', dc && /ABCD/.test(dc.userCode || JSON.stringify(dc)) && (st.dcBodies[1] || '').includes('client_id=test-client'), st.dcBodies[1]);
       const steps = [];
       const acc = await accounts.msWait((s) => steps.push(s));
-      check('account', '微软：走完设备码、Xbox、XSTS、Minecraft，账户存好了', acc && acc.name === 'MsMock' && acc.type === 'microsoft', acc && { name: acc.name, type: acc.type, steps: steps.length });
+      const skins = core('skins');
+      const lib = await skins.libraryAll();
+      const legRaw = require('electron').nativeImage.createFromBitmap(Buffer.alloc(64 * 32 * 4, 255), { width: 64, height: 32 }).toPNG();
+      const legNorm = skins.normalizeSkinBuffer(legRaw);
+      check('account', '微软：走完设备码、Xbox、XSTS、Minecraft，账户存好了且 http 皮肤升成本地或 https', acc && acc.name === 'MsMock' && acc.type === 'microsoft' && acc.skin && !/^http:\/\//i.test(acc.skin.url) && /^file:/i.test(acc.skin.url), acc && { name: acc.name, type: acc.type, skin: acc.skin && acc.skin.url, steps: steps.length });
+      check('account', '微软：正版皮肤自动保存到皮肤中心「正版账户皮肤」分组，旧版 64×32 可转成 64×64', lib.groups.includes(skins.MS_GROUP) && lib.items.some((x) => x.group === skins.MS_GROUP && x.name === 'MsMock') && legNorm && legNorm.legacy && skins.pngSize(legNorm.png).h === 64, { groups: lib.groups, items: lib.items.length, leg: legNorm && skins.pngSize(legNorm.png) });
       const file = fs.readFileSync(path.join(dirs.data, 'accounts.json'), 'utf8');
       check('account', '微软：令牌没有明文写进账户文件', !file.includes('ms-refresh') && !file.includes('ms-access'));
       const r = await accounts.refresh(acc.id);
       check('account', '微软：刷新令牌能用', !!r, st.calls.filter((x) => /token/.test(x)).length);
+      // 模拟旧版本升级导入后还没有 skinCache 的微软账户：导出不带 cache，重新导入后能立即升级 https 并后台补拉
+      const exported = accounts.exportList();
+      await accounts.remove(acc.id);
+      await accounts.importList(exported);
+      const preView = accounts.list().accounts.find((x) => x.id === acc.id);
+      await accounts.syncMissingMicrosoftSkins();
+      const postView = accounts.list().accounts.find((x) => x.id === acc.id);
+      check('account', '微软：旧账户无本地缓存时先升 https，补拉后变成本地缓存且进入皮肤中心', preView && /^https:\/\//.test(preView.skin && preView.skin.url || '') && postView && /^file:\/\//.test(postView.skin && postView.skin.url || ''), { pre: preView && preView.skin, post: postView && postView.skin });
       st.refreshBad = true;
       const bad = await accounts.refresh(acc.id).then(() => null, (e) => e.message);
       check('account', '微软：刷新令牌过期，提示重新登录', !!bad && /登录/.test(bad), bad);

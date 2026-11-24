@@ -8,6 +8,8 @@ const { sleep, abortError } = require('../../engine/util');
 
 const MS_BASE = 'https://login.microsoftonline.com/consumers/oauth2/v2.0';
 const SCOPE = 'XboxLive.signin offline_access';
+// 已通过 Minecraft API 审核的 Azure 应用 Client ID，默认内置；可在设置中覆盖
+const DEFAULT_CLIENT_ID = 'cbd20528-fd71-43bb-9a41-5f927491ed83';
 
 const XSTS_ERRORS = {
   2148916227: '该账户已被 Xbox 封禁',
@@ -94,7 +96,8 @@ async function xboxChain(msAccessToken, onStep = () => {}) {
     TokenType: 'JWT',
   });
   if (!xbl.ok || !xbl.data || !xbl.data.Token) throw new Error(`Xbox Live 验证失败（HTTP ${xbl.status}）`);
-  const uhs = xbl.data.DisplayClaims.xui[0].uhs;
+  const uhs = xbl.data.DisplayClaims && xbl.data.DisplayClaims.xui && xbl.data.DisplayClaims.xui[0] && xbl.data.DisplayClaims.xui[0].uhs;
+  if (!uhs) throw new Error(`Xbox Live 验证失败（HTTP ${xbl.status}）`);
 
   onStep('正在获取 XSTS 令牌…');
   const xsts = await postJson('https://xsts.auth.xboxlive.com/xsts/authorize', {
@@ -127,6 +130,8 @@ async function xboxChain(msAccessToken, onStep = () => {}) {
   };
 }
 
+const httpsUrl = (u) => (typeof u === 'string' ? u.replace(/^http:\/\/(?!127\.0\.0\.1(?::|\/|$)|localhost(?::|\/|$))/i, 'https://') : '');
+
 async function fetchProfile(mcToken, onStep = () => {}) {
   onStep('正在获取游戏档案…');
   const r = await getJsonAuth('https://api.minecraftservices.com/minecraft/profile', mcToken);
@@ -137,8 +142,8 @@ async function fetchProfile(mcToken, onStep = () => {}) {
   return {
     uuid: r.data.id,
     name: r.data.name,
-    skin: skin ? { url: skin.url, variant: skin.variant } : null,
-    cape: cape ? { url: cape.url, alias: cape.alias } : null,
+    skin: skin && skin.url ? { url: httpsUrl(skin.url), variant: skin.variant } : null,
+    cape: cape && cape.url ? { url: httpsUrl(cape.url), alias: cape.alias } : null,
   };
 }
 
@@ -155,4 +160,4 @@ async function loginWithMsToken(ms, onStep) {
   };
 }
 
-module.exports = { startDeviceCode, pollDeviceCode, refreshMsToken, loginWithMsToken, fetchProfile };
+module.exports = { DEFAULT_CLIENT_ID, startDeviceCode, pollDeviceCode, refreshMsToken, loginWithMsToken, fetchProfile };

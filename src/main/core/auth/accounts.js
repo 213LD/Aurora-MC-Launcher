@@ -1,6 +1,6 @@
 'use strict';
 /**
- * 账户：离线、外置登录（Yggdrasil）、微软正版（入口现在关着）。
+ * 账户：离线、外置登录（Yggdrasil）、微软正版。
  * 令牌用系统加密存着，密码不存；启动前由 getLaunchAuth 换好这次用的登录信息。
  */
 const path = require('path');
@@ -63,15 +63,19 @@ function offlineUUID(name) {
 }
 
 function publicView(a) {
-  // 离线账户的自定义皮肤；正版账户用官方的皮肤
+  // 离线账户的自定义皮肤；正版账户优先用本地缓存（断网/防策略拦截），未缓存时将 Mojang http 升级为 https
   const custom = a.type === 'offline' ? skins.viewOf(a) : null;
+  const cached = a.type === 'microsoft' ? skins.cachedViewOf(a) : null;
+  const upgrade = (x) => (x && x.url && a.type === 'microsoft'
+    ? { ...x, url: x.url.replace(/^http:\/\/(?!127\.0\.0\.1(?::|\/|$)|localhost(?::|\/|$))/i, 'https://') }
+    : x || null);
   return {
     id: a.id,
     type: a.type,
     name: a.name,
     uuid: a.uuid,
-    skin: (custom && custom.skin) || a.skin || null,
-    cape: (custom && custom.cape) || a.cape || null,
+    skin: (custom && custom.skin) || (cached && cached.skin) || upgrade(a.skin),
+    cape: (custom && custom.cape) || (cached && cached.cape) || upgrade(a.cape),
     skinMethod: custom ? custom.method : (a.custom && a.custom.method) || 'auto',
     server: a.type === 'yggdrasil' && a.server ? { name: a.server.name, root: a.server.root, homepage: a.server.homepage || '' } : null,
     addedAt: a.addedAt,
@@ -114,6 +118,40 @@ async function addOffline(name, customUuid) {
   return list();
 }
 
+const skinSyncAt = new Map();
+let skinBackfillPromise = null;
+
+async function syncMicrosoftSkin(acc) {
+  if (!acc || acc.type !== 'microsoft') return false;
+  skinSyncAt.set(acc.id, Date.now());
+  const cached = await skins.syncMicrosoftAccount(acc);
+  if (!cached) return false;
+  load();
+  const live = state.accounts.find((a) => a.id === acc.id);
+  if (!live) return false;
+  live.skinCache = cached;
+  await save();
+  return true;
+}
+
+/** 启动或升级后后台补拉尚未缓存/入库的微软正版皮肤 */
+function syncMissingMicrosoftSkins(onChanged) {
+  load();
+  const now = Date.now();
+  const todo = state.accounts.filter((a) => a && a.type === 'microsoft'
+    && (!a.skinCache || !a.skinCache.syncedLib || !null)
+    && now - (skinSyncAt.get(a.id) || 0) > 60000);
+  if (!todo.length || skinBackfillPromise) return skinBackfillPromise;
+  skinBackfillPromise = (async () => {
+    let updated = false;
+    for (const acc of todo) {
+      try { if (await syncMicrosoftSkin(acc)) updated = true; } catch (e) { console.warn('[accounts] 补拉微软账户皮肤失败', e.message); }
+    }
+    if (updated && typeof onChanged === 'function') onChanged();
+  })().finally(() => { skinBackfillPromise = null; });
+  return skinBackfillPromise;
+}
+
 async function upsertMicrosoft(result) {
   load();
   const id = `ms-${result.uuid}`;
@@ -132,9 +170,11 @@ async function upsertMicrosoft(result) {
     mcAccessToken: enc(result.mcAccessToken),
     needRelogin: false,
   });
+  if (!result.skin) delete acc.skinCache;
   if (result.msRefreshToken) acc.msRefreshToken = enc(result.msRefreshToken);
   state.selected = id;
   await save();
+  try { await syncMicrosoftSkin(acc); } catch (e) { console.warn('[accounts] 同步微软账户皮肤失败', e.message); }
   return publicView(acc);
 }
 
@@ -190,9 +230,10 @@ async function yggEnsure(acc, onStep = () => {}) {
 
 // ── 设备代码登录会话 ──
 let pending = null;
+const msClientId = () => (config.get().msClientId || '').trim() || ms.DEFAULT_CLIENT_ID;
 
 async function msStart() {
-  const clientId = (config.get().msClientId || '').trim();
+  const clientId = msClientId();
   if (pending) pending.controller.abort();
   const dc = await ms.startDeviceCode(clientId);
   pending = { dc, clientId, controller: new AbortController() };
@@ -227,7 +268,7 @@ async function refresh(id, onStep = () => {}) {
     return publicView(acc);
   }
   if (acc.type !== 'microsoft') return publicView(acc);
-  const clientId = (config.get().msClientId || '').trim();
+  const clientId = msClientId();
   const rt = dec(acc.msRefreshToken);
   if (!clientId || !rt) {
     acc.needRelogin = true; await save();
@@ -273,6 +314,7 @@ async function getLaunchAuth(id, onStep) {
 
 async function remove(id) {
   load();
+  skinSyncAt.delete(id);
   await skins.removeAccount(id).catch(() => {});
   state.accounts = state.accounts.filter((a) => a.id !== id);
   if (state.selected === id) state.selected = state.accounts[0] ? state.accounts[0].id : '';
@@ -334,4 +376,4 @@ async function importList(data) {
 function raw() { load(); return state.accounts; }
 function find(id) { load(); return state.accounts.find((a) => a.id === (id || state.selected)) || null; }
 
-module.exports = { yggLogin, yggPresets: () => ygg.PRESETS, setSkin, raw, find, list, addOffline, msStart, msWait, msCancel, refresh, getLaunchAuth, remove, select, offlineUUID, exportList, importList };
+module.exports = { yggLogin, yggPresets: () => ygg.PRESETS, setSkin, raw, find, list, addOffline, msStart, msWait, msCancel, refresh, syncMicrosoftSkin, syncMissingMicrosoftSkins, getLaunchAuth, remove, select, offlineUUID, exportList, importList };

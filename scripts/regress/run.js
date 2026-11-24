@@ -174,6 +174,7 @@ function runRobust() {
   runNode('rc14-ui.js'); // rc14：拉窗口后生物跟着世界挪、不追已经不在的目标、原地迈步算卡住、一个出错不连累别的；图标和字体预热
   runNode('rc11-ui.js'); // rc11：名字改成 Aurora MC Launcher、调试菜单没有密码哈希时打不开
   runNode('rc9-ui.js'); // rc9：每个场景四处画几帧不报错、画错一帧循环不停、日志中心离开再回来 / 带着一局打开 / 导出 / 实时追加、默认视角和平原的山
+  runNode('ms-login-ui.js'); // 微软正版登录入口、设备码登录流程与多种外观
   runNode('crash.js');
   runNode('upgrade.js');
   runNode('leak.js');

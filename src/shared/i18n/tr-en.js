@@ -4202,5 +4202,12 @@
 "微软要求第三方启动器先在 Azure 注册应用、通过审核，才能用微软账户登录 Minecraft。申请正在进行，通过后会在更新里开放；在那之前可以先用离线账户或外置登录。": "Microsoft requires third-party launchers to register an Azure app and pass a review before they can sign in to Minecraft with a Microsoft account. The application is in progress and sign-in will arrive in an update once it's approved; until then, use an offline account or third-party sign-in.",
 "正在向微软申请，通过审核后开放；现在请先使用离线账户或外置登录": "Awaiting Microsoft's approval; use offline or third-party sign-in for now",
 "正在申请": "Applying",
-"正在申请，暂时还不能用": "Being applied for, not available yet"
+"正在申请，暂时还不能用": "Being applied for, not available yet",
+"一般玩家无需修改这里。如需使用自己的 Azure 应用，只需配置一次：": "Most players don't need to change this. To use your own Azure app, set it up once:",
+"启动器已内置通过审核的 Azure 应用，留空即使用内置默认；也可以填写自定义 Client ID": "A verified Azure app is built in; leave blank to use it, or enter your own Client ID",
+"已内置通过审核的应用，留空即使用默认；也可以填写自定义 Client ID": "Verified app built in; leave blank for default or enter a custom Client ID",
+"留空使用内置默认": "Leave blank for built-in default",
+"留空即恢复内置默认；也可以随时在「设置 → 微软登录」中修改": "Leave blank to restore the built-in default; you can also change it in \"Settings → Microsoft sign-in\"",
+"正版账户皮肤": "Microsoft account skins",
+"请检查网络连接；如果设置了自定义 Client ID，请确认它正确且已开启「允许公共客户端流」。": "Check your network connection; if using a custom Client ID, verify it and enable \"Allow public client flows\"."
 };

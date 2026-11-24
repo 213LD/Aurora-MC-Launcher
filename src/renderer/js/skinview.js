@@ -16,13 +16,17 @@
     lleg: { base: [16, 48, 4, 12, 4], over: [0, 48, 4, 12, 4], pivot: [2, 20, 0], inflate: 0.25 },
   };
 
+  const fixUrl = (u) => (typeof u === 'string' ? u.replace(/^http:\/\/(?!127\.0\.0\.1(?::|\/|$)|localhost(?::|\/|$))/i, 'https://') : u);
+  const cssUrl = (u) => String(u || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+
   /** 一个长方体：中心在 (0,0,0)，dims 是像素尺寸（可以带 inflate），uv 取贴图 */
   function cuboid(s, [u, v, w, hh, d], tex, texW, texH, inflate = 0) {
+    const safeTex = cssUrl(fixUrl(tex));
     const W = (w + inflate * 2) * s; const H = (hh + inflate * 2) * s; const D = (d + inflate * 2) * s;
     const face = (fu, fv, fw, fh, pw, ph, transform) => h('div.sk-face', {
       style: {
         width: `${pw}px`, height: `${ph}px`, marginLeft: `${-pw / 2}px`, marginTop: `${-ph / 2}px`, transform,
-        backgroundImage: `url("${tex}")`,
+        backgroundImage: `url("${safeTex}")`,
         backgroundSize: `${texW * s * (pw / (fw * s))}px ${texH * s * (ph / (fh * s))}px`,
         backgroundPosition: `${-fu * s * (pw / (fw * s))}px ${-fv * s * (ph / (fh * s))}px`,
       },
@@ -74,10 +78,10 @@
         if (b && st.cape) {
           const cimg = new Image();
           cimg.onload = () => { if (my === seq) ctx.drawImage(cimg, 1, 1, 10, 16, 3, 8, 10, 16); };
-          cimg.src = st.cape;
+          cimg.src = fixUrl(st.cape);
         }
       };
-      img.src = st.url;
+      img.src = fixUrl(st.url);
     }
     draw();
     return { el, set(patch) { Object.assign(st, patch); draw(); }, showBack(v) { st.back = v === undefined ? !st.back : !!v; draw(); return st.back; }, get state() { return { ...st }; }, flat: true };

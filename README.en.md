@@ -64,7 +64,7 @@ The default "Aurora" style, a pixel style in the spirit of the game, and a compa
 ### And more
 
 - **Move in from other launchers**: import profiles and saves from the official launcher, HMCL, PCL2 and MultiMC / Prism Launcher; the original files are never changed
-- **Accounts**: offline accounts and third-party login (LittleSkin and others). Offline accounts can use your own skin through the launcher's built-in local skin server. Microsoft login is being applied for, see "Not done yet" below
+- **Accounts**: Microsoft login (device code flow), third-party login (LittleSkin and others), and offline accounts. Offline accounts can use your own skin through the launcher's built-in local skin server
 - **Skin Center**: collect, group and preview skins in 3D, and assign them to offline accounts
 - **Log Center**: watch the game log live, filter by level, search and export; the log of every session is kept
 - **Your data, your choice of location**: the system default, portable mode (everything lives in a folder next to the exe, so you can copy the whole folder elsewhere), or a folder you pick
@@ -77,10 +77,10 @@ The default "Aurora" style, a pixel style in the spirit of the game, and a compa
 - It only goes online when you use a feature that needs it, and then talks directly to that service: downloading (and searching) the game, mods, resource packs, shaders and Java; Microsoft and third-party login; Minecraft news on the home screen; importing a skin by player name, from LittleSkin or from a URL.
 - Everything else works without a network. When the network is gone, the launcher switches to offline mode and disables the features that need it.
 
-## Not done yet
+## Notes
 
-- **Microsoft login**: the code is written, but Microsoft requires third-party launchers to sign in through their own registered Azure app and to apply separately for access to the Minecraft API. The application is in progress; until it is approved, the entry shows "Applying" (hover over it for details); please use an offline account or third-party login for now.
 - Windows only.
+- Online features (downloading games/mods, Microsoft login, and third-party login) are disabled in offline mode.
 
 ## Running from source
 

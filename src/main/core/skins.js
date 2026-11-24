@@ -17,11 +17,13 @@ const jsonStore = require('../engine/jsonstore');
 const { nm } = require('../../shared/i18n');
 
 const METHODS = ['auto', 'service', 'csl', 'none'];
+const MS_GROUP = '正版账户皮肤';
 const root = () => path.join(paths.dataDir(), 'skins');
 const safe = (id) => String(id).replace(/[^\w.-]/g, '_');
 const accDir = (id) => path.join(root(), safe(id));
 const libDir = () => path.join(root(), 'library');
 const sha256 = (buf) => crypto.createHash('sha256').update(buf).digest('hex');
+const httpsTexUrl = (u) => (typeof u === 'string' ? u.replace(/^http:\/\/(?!127\.0\.0\.1(?::|\/|$)|localhost(?::|\/|$))/i, 'https://') : '');
 
 /** PNG 的宽高；不是 PNG 返回 null */
 function pngSize(buf) {
@@ -61,6 +63,82 @@ function viewOf(acc) {
     cape: cp && fs.existsSync(cp) ? { url: fileUrl(cp, c.cape), custom: true } : null,
     method: METHODS.includes(c.method) ? c.method : 'auto',
   };
+}
+
+/** 微软正版账户的本地缓存皮肤（断网或升级后预览、防止第三方链接受策略拦截） */
+function cachedViewOf(acc) {
+  const c = acc && acc.skinCache;
+  if (!c || !c.skin) return null;
+  const sp = skinFile(acc.id, c.skin);
+  if (!fs.existsSync(sp)) return null;
+  const cp = c.cape ? skinFile(acc.id, c.cape) : null;
+  return {
+    skin: { url: fileUrl(sp, c.skin), variant: c.model === 'slim' ? 'SLIM' : 'CLASSIC' },
+    cape: cp && fs.existsSync(cp) ? { url: fileUrl(cp, c.cape) } : null,
+  };
+}
+
+function copyMirroredBitmap(src, dst, sx, sy, dx, dy, w, hh, d) {
+  const faces = [
+    [sx + d, sy, w, d, dx + d], [sx + d + w, sy, w, d, dx + d + w],
+    [sx, sy + d, d, hh, dx + d + w], [sx + d, sy + d, w, hh, dx + d],
+    [sx + d + w, sy + d, d, hh, dx], [sx + 2 * d + w, sy + d, w, hh, dx + 2 * d + w],
+  ];
+  for (let i = 0; i < faces.length; i++) {
+    const [fx, fy, fw, fh, tx] = faces[i];
+    const ty = i < 2 ? dy : dy + d;
+    for (let row = 0; row < fh; row++) {
+      for (let col = 0; col < fw; col++) {
+        const si = ((fy + row) * 64 + (fx + col)) * 4;
+        const di = ((ty + row) * 64 + (tx + fw - 1 - col)) * 4;
+        dst[di] = src[si]; dst[di + 1] = src[si + 1]; dst[di + 2] = src[si + 2]; dst[di + 3] = src[si + 3];
+      }
+    }
+  }
+}
+
+function normalizeSkinBuffer(buf) {
+  const s = pngSize(buf);
+  if (!s || s.w !== 64 || (s.h !== 64 && s.h !== 32)) return null;
+  if (s.h === 64) return { png: buf, model: null, legacy: false };
+  const { nativeImage } = require('electron');
+  const src = nativeImage.createFromBuffer(buf).toBitmap();
+  if (src.length < 64 * 32 * 4) return null;
+  const dst = Buffer.alloc(64 * 64 * 4);
+  src.copy(dst, 0, 0, 64 * 32 * 4);
+  copyMirroredBitmap(src, dst, 0, 16, 16, 48, 4, 12, 4);
+  copyMirroredBitmap(src, dst, 40, 16, 32, 48, 4, 12, 4);
+  let solidHat = true;
+  for (let y = 0; y < 16 && solidHat; y++) {
+    for (let x = 32; x < 64; x++) {
+      if (dst[(y * 64 + x) * 4 + 3] < 128) { solidHat = false; break; }
+    }
+  }
+  if (solidHat) {
+    for (let y = 0; y < 16; y++) dst.fill(0, (y * 64 + 32) * 4, (y * 64 + 64) * 4);
+  }
+  for (const [bx, by, bw, bh] of [[0, 0, 32, 16], [0, 16, 64, 16], [16, 48, 32, 16]]) {
+    for (let y = by; y < by + bh; y++) {
+      for (let x = bx; x < bx + bw; x++) dst[(y * 64 + x) * 4 + 3] = 255;
+    }
+  }
+  const png = nativeImage.createFromBitmap(dst, { width: 64, height: 64 }).toPNG();
+  return { png, model: 'classic', legacy: true };
+}
+
+function normalizeCapeBuffer(buf) {
+  const s = pngSize(buf);
+  if (!s) return null;
+  if (s.w === s.h * 2 && s.w % 64 === 0) return buf;
+  if (s.w === 22 && s.h === 17) {
+    const { nativeImage } = require('electron');
+    const src = nativeImage.createFromBuffer(buf).toBitmap();
+    if (src.length < 22 * 17 * 4) return null;
+    const dst = Buffer.alloc(64 * 32 * 4);
+    for (let y = 0; y < 17; y++) src.copy(dst, y * 64 * 4, y * 22 * 4, (y + 1) * 22 * 4);
+    return nativeImage.createFromBitmap(dst, { width: 64, height: 32 }).toPNG();
+  }
+  return null;
 }
 
 async function store(id, buf) {
@@ -108,7 +186,7 @@ async function removeAccount(id) { await fsp.rm(accDir(id), { recursive: true, f
 
 /** 读账户的皮肤原图（本地皮肤服务、CSL 复制用） */
 async function readTexture(acc, kind) {
-  const c = acc && acc.custom;
+  const c = acc && (acc.custom || acc.skinCache);
   const hash = c && (kind === 'cape' ? c.cape : c.skin);
   if (!hash) return null;
   try { return { hash, buf: await fsp.readFile(skinFile(acc.id, hash)) }; } catch { return null; }
@@ -251,6 +329,7 @@ async function libraryAdd({ png, model, name, group, keep }) {
     idx.items = (idx.items || []).filter((x) => x.hash !== hash);
     const item = keep && old ? old : { hash, model: model === 'slim' ? 'slim' : 'classic', name: cleanName(name) || '皮肤', addedAt: Date.now() };
     if (group !== undefined && !(keep && old && old.group)) item.group = cleanName(group) || undefined;
+    if (item.group) idx.groups = [...new Set([...(idx.groups || []), item.group])];
     idx.items.unshift(item);
     return idx;
   }, LIB);
@@ -412,7 +491,45 @@ async function prepareLaunch(acc, gameDir, task) {
   return out;
 }
 
+/** 拉取微软正版账户的当前皮肤和披风并保存到本地缓存与皮肤中心 */
+async function syncMicrosoftAccount(acc) {
+  if (!acc || acc.type !== 'microsoft') return null;
+  let skinBuf = null;
+  let capeBuf = null;
+  let model = acc.skin && acc.skin.variant === 'SLIM' ? 'slim' : 'classic';
+  const skinUrl = httpsTexUrl(acc.skin && acc.skin.url);
+  const capeUrl = httpsTexUrl(acc.cape && acc.cape.url);
+  if (skinUrl) {
+    try { skinBuf = await net.getBuffer(skinUrl, { retries: 1, timeout: 20000 }); } catch (e) { console.warn('[skins] 下载正版账户皮肤失败', e.message); }
+  }
+  if (!skinBuf && acc.name) {
+    try {
+      const fetched = await fromMojang(acc.name);
+      if (fetched && fetched.skin) skinBuf = fromB64(fetched.skin);
+      if (fetched && fetched.model) model = fetched.model;
+      if (fetched && fetched.cape) capeBuf = fromB64(fetched.cape);
+    } catch (e) { console.warn('[skins] 按玩家名拉取正版皮肤失败', e.message); }
+  }
+  if (!skinBuf) return null;
+  const norm = normalizeSkinBuffer(skinBuf);
+  if (!norm) return null;
+  skinBuf = norm.png;
+  const skinHash = await store(acc.id, skinBuf);
+  let capeHash = null;
+  if (!capeBuf && capeUrl) {
+    try { capeBuf = await net.getBuffer(capeUrl, { retries: 1, timeout: 20000 }); } catch (e) { console.warn('[skins] 下载正版账户披风失败', e.message); }
+  }
+  if (capeBuf) {
+    const capeNorm = normalizeCapeBuffer(capeBuf);
+    if (capeNorm) capeHash = await store(acc.id, capeNorm);
+  }
+  await prune(acc.id, [skinHash, capeHash].filter(Boolean));
+  await libraryAdd({ png: skinBuf, model, name: acc.name || '皮肤', group: MS_GROUP, keep: true });
+  return { skin: skinHash, model, cape: capeHash, sourceUrl: skinUrl || '', syncedLib: true };
+}
+
 module.exports = {
-  METHODS, pngSize, viewOf, apply, removeAccount, readTexture, fetchSkin, defaults,
+  METHODS, MS_GROUP, pngSize, viewOf, cachedViewOf, normalizeSkinBuffer, normalizeCapeBuffer, syncMicrosoftAccount,
+  apply, removeAccount, readTexture, fetchSkin, defaults,
   library, libraryAdd, libraryRemove, libraryRead, libraryAll, libraryUpdate, libraryGroup, scanFolder, uploadMicrosoft, hasCsl, writeCsl, prepareLaunch, root,
 };
