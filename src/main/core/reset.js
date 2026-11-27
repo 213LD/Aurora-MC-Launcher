@@ -72,6 +72,11 @@ async function run(opts = {}) {
   const own = ['plans.json', 'plans.json.bak', 'config.debug-backup.json', 'config.json.bak', 'config.b4.bak'];
   if (opts.accounts) own.push('accounts.json', 'accounts.json.bak');
   for (const f of own) await fsp.rm(path.join(data, f), { force: true }).catch(() => {});
+  // 账户一起清掉时，各账户的皮肤缓存（skins/<账户>）也没人用了；皮肤中心自己的库（skins/library）留着
+  if (opts.accounts) {
+    const sk = path.join(data, 'skins');
+    for (const n of await fsp.readdir(sk).catch(() => [])) if (n !== 'library') await rmrf(path.join(sk, n)).catch(() => {}); // pitfall-ok：启动器自己的皮肤缓存，删不掉下次会重新下载
+  }
   // 只删启动器自己放进 cache 的东西：Windows 不分大小写，cache 和 Chromium 正在用的 Cache 是同一个文件夹，整个删会卡住
   for (const f of ['modpacks', 'installers', 'java', 'patch_notes.json']) await rmrf(path.join(paths.cacheDir(), f)).catch(() => {});
   if (opts.java) await rmrf(paths.runtimeDir()).catch(() => {});

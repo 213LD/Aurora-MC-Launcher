@@ -19,15 +19,18 @@ let win = null;
 
 const primary = app.requestSingleInstanceLock();
 if (!primary) {
-  app.quit();
-} else {
-  app.on('second-instance', () => {
-    if (!win) return;
-    if (!win.isVisible()) win.show();
-    if (win.isMinimized()) win.restore();
-    win.focus();
-  });
+  // 已经开着一个：那个会被叫到前面（second-instance），这个直接退出。不往下走：不读设置（读的时候可能补字段写盘）、不注册别的事件
+  app.exit(0);
+  return;
 }
+// 启动器不用 <webview>：万一页面里被塞进一个，也不让它挂上（纵深防御；新窗口、跳转在 createWindow 里另外拦着）
+app.on('web-contents-created', (_e, wc) => { wc.on('will-attach-webview', (ev) => ev.preventDefault()); });
+app.on('second-instance', () => {
+  if (!win) return;
+  if (!win.isVisible()) win.show();
+  if (win.isMinimized()) win.restore();
+  win.focus();
+});
 
 app.setAppUserModelId(EDITION.appId);
 
@@ -63,7 +66,8 @@ function createWindow() {
     },
   });
   Menu.setApplicationMenu(null);
-  if (process.env.AURORA_SHOT_DIR) require('./devshot').attach(win);
+  // 截图脚本会往页面里执行环境变量给的代码：只在开发时（没打包）用，打包好的版本设了环境变量也不理
+  if (process.env.AURORA_SHOT_DIR && !app.isPackaged) require('./devshot').attach(win);
   win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'), { query: { lang: i18n.getLang() } });
   win.once('ready-to-show', () => win.show());
   win.webContents.on('did-finish-load', applyZoom);

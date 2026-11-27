@@ -287,7 +287,7 @@ const SCENARIOS = {
 (async () => {
   await app.whenReady();
   const name = process.argv[process.argv.length - 1];
-  if (!SRC || !JAVA) { check('flow', '跳过：没设 AURORA_REGRESS_GAME_SRC / AURORA_REGRESS_JAVA_HOME', true); finish(); return; }
+  if (!SRC || !JAVA) { check('flow', '没跑：缺环境变量 AURORA_REGRESS_GAME_SRC / AURORA_REGRESS_JAVA_HOME（没跑不能算通过）', false); finish(2); return; }
   if (!SCENARIOS[name]) { console.log(`场景：${Object.keys(SCENARIOS).join(' ')}`); finish(2); return; }
   try {
     await SCENARIOS[name]();

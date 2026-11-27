@@ -24,7 +24,7 @@ const RULES = [
   [/^src\/renderer\/js\/(tasks|pages\/tasks|pages\/planner)/, ['rc3-ui.js --quick', 'rc12-ui.js'], '任务中心、Mod 配置器'],
   [/^src\/(renderer\/js\/savesui\.js|main\/ipc\/backup\.js)/, ['rc12-ui.js'], '存档与备份'],
   [/^src\/renderer\/js\/(skin|pages\/skins|pages\/accounts)/, ['rc3-ui.js --quick', 'rc4-ui.js --quick'], '皮肤、账户'],
-  [/^(src\/renderer\/js\/(pages\/(accounts|settings|skins)|base\/(core|ui)|skinui|skinview)\.js|src\/main\/core\/(auth\/(accounts|microsoft)|skins)\.js|src\/main\/ipc\/accounts\.js)$/, ['ms-login-ui.js'], '微软正版登录入口、设备码登录流程、自定义 Client ID 与正版皮肤同步预览'],
+  [/^(src\/renderer\/js\/(pages\/(accounts|settings|skins)|base\/(core|ui)|skinui|skinview)\.js|src\/main\/core\/(auth\/(accounts|microsoft)|skins)\.js|src\/main\/ipc\/accounts\.js)$/, ['ms-login-ui.js', 'game-real.js ms'], '微软正版登录入口、设备码登录流程、自定义 Client ID 与正版皮肤同步预览；game-real.js ms 在主进程里模拟整条登录链路和皮肤补拉（不进游戏、不联网）'],
   [/^src\/renderer\/js\/(modkit|pages\/repair|pages\/mods)/, ['issue-layout.js'], '问题卡片'],
   [/^src\/main\/(ipc|preload|engine\/(fileops|zip|nbt|net|downloader))/, ['robust-ui.js'], '接口、文件和网络引擎：真实窗口里的坏数据和坏接口'],
   // 测试脚本自己改了：跑它自己
@@ -47,13 +47,15 @@ function changedFiles(since) {
 const EDITION_SENSITIVE = [
   /^src\/edition\//,
   /^src\/shared\/(brand|edition)\.js$/,
+  /^src\/shared\/i18n\/index\.js$/, // 语言列表：公开版没有繁体
   /^src\/shared\/i18n\/tr-en\.js$/,
   /^src\/main\/(main|disclaimer)\.js$/,
   /^src\/main\/engine\/(edition|envelope|location)\.js$/,
   /^src\/main\/core\/mcmod\.js$/,
   /^src\/main\/ipc\/app\.js$/,
-  /^src\/renderer\/js\/(app|setup|credits|mcmodui|mcmodcn|debugmenu|debugkey|home\/newspanel|pages\/settings)\.js$/,
-  /^scripts\/(edition|export-public)\.js$/,
+  /^src\/renderer\/js\/(app|setup|credits|mcmodui|mcmodcn|debugmenu|debugkey|home\/newspanel|home\/changelog|pages\/settings)\.js$/,
+  /^scripts\/(edition|export-public|build-credits)\.js$/,
+  /^scripts\/public-sync\.json$/,
   /^scripts\/regress\//,
   /^package\.json$/,
 ];

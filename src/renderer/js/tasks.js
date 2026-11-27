@@ -163,7 +163,7 @@
         return;
       }
       if (task.status === 'failed' && task.retryable) {
-        actions.append(h('button.btn.sm', { onclick: async (e) => { e.currentTarget.disabled = true; try { await api('tasks:retry', task.id); } catch (err) { A.errorToast('无法重试', err); } } }, icon('refresh', 14), '重试'));
+        actions.append(h('button.btn.sm', { onclick: async (e) => { const b = e.currentTarget; b.disabled = true; try { await api('tasks:retry', task.id); } catch (err) { b.disabled = false; A.errorToast('无法重试', err); } } }, icon('refresh', 14), '重试'));
       }
       // 取消了的不给「打开文件夹」：取消时装了一半的东西已经清掉，文件夹多半不在了（rc12 按钮走查：点了报「路径不存在」）。
       // 完成了的文件夹后来也可能被删掉：说清楚是什么情况，不只说「路径不存在」

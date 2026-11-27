@@ -166,6 +166,7 @@ function stop() {
   if (server) server.close();
   server = null; starting = null; port = 0;
 }
+require('../engine/shutdown').onQuit(stop); // 退出时把本机的皮肤服务关掉，端口不留着
 
 const apiRoot = () => `http://127.0.0.1:${port}/`;
 const prefetched = () => Buffer.from(JSON.stringify(metadata())).toString('base64');

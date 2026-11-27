@@ -54,7 +54,8 @@
     let waited = 0;
     clearInterval(poll);
     poll = setInterval(() => {
-      if (state.page !== 'home' || scene.frozen || !scene.opts.pan) return;
+      // 离开主页、场景停着（性能模式、静态背景）、不能拖：不用一直等，停下；下次回到主页会再调 maybe
+      if (state.page !== 'home' || scene.frozen || !scene.opts.pan) { clearInterval(poll); poll = null; return; }
       if (document.querySelector('.modal-back:not(.closing), .setup, .endpoem')) { waited = 0; return; }
       if ((waited += 250) < 1200) return;
       clearInterval(poll);

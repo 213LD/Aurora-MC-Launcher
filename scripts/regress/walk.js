@@ -447,7 +447,7 @@ async function walkPage(page) {
     if (!r.ok) for (const line of rec.opened) console.log(`    ${line.slice(0, 200)}`);
     console.log(`${r.ok ? 'PASS' : 'FAIL'} [walk] ${r.name}${r.detail ? ` — ${r.detail.slice(0, 800)}` : ''}`);
     if (process.env.AURORA_REGRESS_OUT) fs.appendFileSync(process.env.AURORA_REGRESS_OUT, `${JSON.stringify(r)}\n`, 'utf8');
-    process.exit(0);
+    process.exit(r.ok ? 0 : 1);
   }
   const arg = process.argv.slice(2).find((x) => !x.startsWith('--'));
   const pages = arg ? arg.split(',').flatMap((x) => (x === 'settings' ? SETTINGS : [x])) : PAGES;
@@ -498,5 +498,5 @@ async function walkPage(page) {
   // 第一次走的页面（或第一次用固定数据走）也记下来，下次才比得出少了什么
   if (UPDATE || added) fs.writeFileSync(LAYERS_FILE, `${JSON.stringify(oldLayers, null, 1)}\n`, 'utf8');
   if (process.env.AURORA_REGRESS_OUT) fs.appendFileSync(process.env.AURORA_REGRESS_OUT, `${results.map((r) => JSON.stringify(r)).join('\n')}\n`, 'utf8');
-  process.exit(0);
+  process.exit(results.some((r) => !r.ok) ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });

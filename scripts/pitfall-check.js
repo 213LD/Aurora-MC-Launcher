@@ -173,6 +173,19 @@ for (const r of RULES) {
     if (ls.length > allowed) problems.push(`【${r.id}】${f} 第 ${ls.join('、')} 行（现在 ${ls.length} 处，基线 ${allowed} 处）\n    为什么：${r.why}\n    该怎么写：${r.fix}`);
   }
 }
+// 基线比现在多（修掉了几处、基线没跟着改）：空出来的名额以后能悄悄再踩回去，也算没过，要 --update 收紧（--update 的时候不报）
+if (!args.includes('--update')) {
+  for (const r of RULES) {
+    if (r.zero) continue;
+    for (const [f, n] of Object.entries(base[r.id] || {})) {
+      // 公开版里换成了替身的文件（MC 百科、调试菜单的密码）：基线是按内部版记的，替身里少了是应该的
+      const fp = path.join(ROOT, f);
+      if (fs.existsSync(fp) && /CONCEPT: true|PUBLIC_STANDIN: true/.test(fs.readFileSync(fp, 'utf8'))) continue;
+      const now = (hits[r.id][f] || []).length;
+      if (now < n) problems.push(`【${r.id}】${f} 现在 ${now} 处，基线还记着 ${n} 处：修掉了的要从基线里去掉（node scripts/pitfall-check.js --update），不然空出来的 ${n - now} 处以后再踩也查不出来`);
+    }
+  }
+}
 for (const m of MUST) {
   const p = path.join(ROOT, m.file);
   if (!fs.existsSync(p) || !m.re.test(fs.readFileSync(p, 'utf8'))) problems.push(`【${m.id}】${m.file} 里少了必须一直在的写法 ${m.re}\n    为什么：${m.why}\n    该怎么写：${m.fix}`);

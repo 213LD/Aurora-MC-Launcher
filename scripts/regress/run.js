@@ -33,8 +33,8 @@ const FULL = args.includes('--full');
 const flag = (n) => (FULL && ['game', 'flow', 'ui', 'real-trash', 'walk', 'robust'].includes(n)) || args.includes(`--${n}`);
 const val = (n) => { const a = args.find((x) => x.startsWith(`--${n}=`)); return a ? a.slice(n.length + 3) : null; };
 
-const DATA = ['config-nobak', 'config-bak-1', 'config-bak-2', 'config-locked', 'accounts-bak-1', 'accounts-bak-2', 'accounts-nobak', 'meta-corrupt', 'old-data', 'stores-corrupt', 'migrate-import', 'meta-race', 'stash-merge', 'sandbox-midway', 'rename-rollback', 'trash-unavailable', 'trash-inuse'];
-const FUNC = ['lang-list', 'export-public', 'promote-real', 'mark-plain', 'bring-items', 'bring-global', 'bring-worlds', 'mc-compare', 'iso-policy', 'cancel-copy', 'duplicate-fail', 'swallowed-errors', 'java-prefix', 'java-inprogress', 'downloader-lock', 'zip-names', 'nbt-mutf8'];
+const DATA = ['config-nobak', 'config-bak-1', 'config-bak-2', 'config-locked', 'accounts-bak-1', 'accounts-bak-2', 'accounts-nobak', 'meta-corrupt', 'old-data', 'stores-corrupt', 'migrate-import', 'meta-race', 'stash-merge', 'sandbox-midway', 'rename-rollback', 'trash-unavailable', 'trash-inuse', 'component-backup', 'ygg-export', 'config-quiet-load', 'backup-guards', 'pack-shared-default'];
+const FUNC = ['lang-list', 'shell-guard', 'installer-stall', 'net-caps', 'planner-fail', 'export-public', 'promote-real', 'mark-plain', 'bring-items', 'bring-global', 'bring-worlds', 'mc-compare', 'iso-policy', 'cancel-copy', 'duplicate-fail', 'swallowed-errors', 'java-prefix', 'java-inprogress', 'downloader-lock', 'zip-names', 'nbt-mutf8'];
 const PRE2 = ['write-atomic', 'write-atomic-nbt', 'quit-flush', 'flush-retry', 'path-scope', 'names', 'pack-traversal', 'net-names', 'copy-rules', 'encoding', 'net-flaky'];
 const PRE3 = ['dl-report', 'task-engine', 'ipc-split', 'launch-guard'];
 const PRE5 = ['fs-errors', 'error-names', 'hardware-text'];
@@ -45,9 +45,10 @@ const GAME = ['own', 'sandbox', 'root'];
 const REAL_CORE = ['save', 'modes', 'sync', 'crash', 'ygg', 'ms', 'external', 'jvm-encoding', 'semicolon', 'screenmem', 'logs'];
 const REAL_ALL = [...REAL_CORE, 'fabric', 'forge', 'neoforge', 'optifine', 'forgecn', 'shader', 'old', 'pack', 'planner'];
 const FLOW = ['launch-cancel', 'install-retry', 'vanillaplus-iso', 'pack-cancel', 'pack-fail', 'profile-lock', 'java-shared'];
-if (FULL) {
+// 要真实游戏的几组：缺环境变量就直接停下（以前子脚本会写一条「跳过」当通过，汇总里看着像测过了）
+if (FULL || flag('game') || flag('flow') || flag('real')) {
   const missing = ['AURORA_REGRESS_GAME_SRC', 'AURORA_REGRESS_JAVA_HOME'].filter((k) => !process.env[k]);
-  if (missing.length) { console.error(`全量回归要真实游戏，缺环境变量：${missing.join('、')}（说明见 game-locks.js）`); process.exit(2); }
+  if (missing.length) { console.error(`${FULL ? '全量回归' : '--game / --flow / --real'}要真实游戏，缺环境变量：${missing.join('、')}（说明见 game-locks.js）`); process.exit(2); }
 }
 const only = val('only') ? val('only').split(',') : null;
 const label = val('label') || 'last';
@@ -231,7 +232,8 @@ if (args.includes('--changed')) {
 === 按改动加跑：从 ${base.slice(0, 10)} 到现在改了 ${files.length} 个文件，加跑 ${extra.length} 个界面测试 ===`);
   for (const x of extra) console.log(`  ${x.script}${x.args.length ? ` ${x.args.join(' ')}` : ''} ← ${x.why.join('；')}`);
   // 走查一个页面要几分钟，全部走一遍要一个多小时：给它两个小时
-  if (!flag('robust')) for (const x of extra) runNode(x.script, x.args, x.script === 'walk.js' ? 10800000 : undefined);
+  // game-real.js 要用 Electron 跑（主进程里的测试），别的都是 node 脚本
+  if (!flag('robust')) for (const x of extra) { if (x.script === 'game-real.js') run(x.script, x.args[0], 1200000); else runNode(x.script, x.args, x.script === 'walk.js' ? 10800000 : undefined); }
   // 改到了两个版本可能不一样的地方（替身、按版本分开的代码、测试脚本……）：导出一份公开版，在里面再跑快速回归和上面这些（public-copy.js）。
   // 公开仓库里没有导出脚本，本来就是公开版，不用再跑
   const pc = impact.publicCopyFor(files);

@@ -2,7 +2,7 @@
 /**
  * 需要真实启动游戏的回归：游戏开着时的各种操作。
  *
- * 环境变量（缺了就跳过）：
+ * 环境变量（缺了就报「没跑」，算失败）：
  *   AURORA_REGRESS_GAME_SRC   一个装好 1.20.1 的游戏目录（有 libraries、assets、versions/1.20.1），只读，会复制一份
  *   AURORA_REGRESS_JAVA_HOME  Java 17 的目录（有 bin/javaw.exe），只读，会复制到隔离数据目录的 runtime 里
  * 用法：electron scripts/regress/game-locks.js <own|sandbox|root>
@@ -193,7 +193,7 @@ async function restoreFromBin(name, dir) {
 (async () => {
   await app.whenReady();
   const name = process.argv[process.argv.length - 1];
-  if (!SRC || !JAVA) { check('game', '跳过：没设 AURORA_REGRESS_GAME_SRC / AURORA_REGRESS_JAVA_HOME', true); finish(); return; }
+  if (!SRC || !JAVA) { check('game', '没跑：缺环境变量 AURORA_REGRESS_GAME_SRC / AURORA_REGRESS_JAVA_HOME（没跑不能算通过）', false); finish(2); return; }
   if (!SCENARIOS[name]) { console.log(`场景：${Object.keys(SCENARIOS).join(' ')}`); finish(2); return; }
   try {
     await SCENARIOS[name]();

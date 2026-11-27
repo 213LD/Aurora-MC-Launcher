@@ -53,6 +53,11 @@
       }
     }
     append(el, children);
+    // 无障碍：没有 href 的 <a>（点了跳到启动器里的某一页）键盘按 Tab 走不到。补上 tabindex 和 role，回车由 ui.js 的全局按键转成点击
+    if (el.tagName === 'A' && !el.hasAttribute('href') && props && props.onclick && !el.hasAttribute('tabindex')) {
+      el.setAttribute('tabindex', '0');
+      if (!el.hasAttribute('role')) el.setAttribute('role', 'link');
+    }
     // 无障碍：纯图标按钮用悬浮提示当名字，有文字的把提示当补充说明
     if (props && props['data-tip'] && !props['aria-label']) {
       el.setAttribute(el.textContent.trim() ? 'aria-description' : 'aria-label', props['data-tip']);

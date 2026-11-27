@@ -41,14 +41,18 @@ function register() {
   // MC 百科中文信息（实验性）：IPC 在 core/mcmod.js 里注册。公开版换成概念演示的替身（src/edition/public），那边什么都不注册
   mcmod.register(handle, { config, versions, mods, startTask, send });
   // 皮肤中心
-  handle('skins:libraryAll', async () => {
-    const p = accounts.syncMissingMicrosoftSkins(() => send('accounts:changed'));
-    if (p) await p;
+  // 补拉正版皮肤在后台做，不等它：网慢的时候皮肤中心不该卡住；补完了推 accounts:changed，皮肤中心跟着刷新
+  handle('skins:libraryAll', () => {
+    accounts.syncMissingMicrosoftSkins(() => send('accounts:changed'));
     return skins.libraryAll();
   });
   handle('skins:libraryUpdate', (hash, patch) => skins.libraryUpdate(hash, patch || {}));
   handle('skins:libraryGroup', (q) => skins.libraryGroup(q || {}));
-  handle('skins:scanFolder', (dir) => skins.scanFolder(String(dir || '')));
+  handle('skins:scanFolder', (dir) => {
+    // 文件夹是玩家在对话框里选的：只收绝对路径（相对路径会按启动器自己的工作目录去找）
+    if (typeof dir !== 'string' || !require('path').isAbsolute(dir)) throw new Error('文件夹路径不对');
+    return skins.scanFolder(dir);
+  });
   // 把账户当前的皮肤收藏进皮肤库
   handle('skins:collect', async (id) => {
     const acc = accounts.find(id);

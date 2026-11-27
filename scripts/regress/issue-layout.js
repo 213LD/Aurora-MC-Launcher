@@ -8,7 +8,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { start, BASE_CONFIG } = require('./robust-ui');
+const { start, BASE_CONFIG, lookShown } = require('./robust-ui');
 const { sleep, guard, ready } = require('./cdp');
 
 const BASE = require('./editions').BASE;
@@ -24,7 +24,7 @@ function check(id, name, ok, detail = '') {
 const LOOKS = [
   ['极光-深', {}], ['像素-深', { ui: { style: 'pixel' }, theme: 'dark' }], ['紧凑-深', { ui: { style: 'compact' }, theme: 'dark' }],
   ['极光-浅', { theme: 'light' }], ['像素-浅', { ui: { style: 'pixel' }, theme: 'light' }], ['紧凑-浅', { ui: { style: 'compact' }, theme: 'light' }],
-  ['极光-1.5倍', { a11y: { zoom: 1.5 } }], ['极光-高对比', { a11y: { contrast: 'high' } }], ['极光-英文', { language: 'en' }],
+  ['极光-1.5倍', { a11y: { zoom: 1.5 } }], ['极光-高对比', { a11y: { contrast: 'on' } }], ['极光-英文', { language: 'en' }],
 ];
 const WIDTHS = [260, 340, 420, 520, 640, 900];
 
@@ -70,6 +70,7 @@ const MEASURE = (w) => `(async () => {
     const a = await start(`issue-layout-${n++}`, { config: (game) => ({ ...BASE_CONFIG(game), migrateAsk: false, ...cfg }) });
     if (a.startError) { check('布局', `${name}：能打开`, false, a.startError); continue; }
     await ready(a.ev);
+    { const lk = await lookShown(a, cfg); check('布局', `${name}：外观真的换上了`, !lk, lk); }
     const bad = [];
     for (const w of WIDTHS) {
       const o = await a.ev(MEASURE(w), 15000);

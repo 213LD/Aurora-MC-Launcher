@@ -91,9 +91,12 @@ async function capture(c) {
   let n = 0;
   for (const c of CASES) n += (await capture(c)).length;
   console.log(`截了 ${n} 张（${CASES.length} 种组合 × ${PAGES.length} 个页面）：${OUT}`);
+  // 截图有变化只报告（要人看）；对比本身没跑成才算失败
+  let ok = true;
   if (compareTo) {
     const r = spawnSync(ELECTRON, [path.join(__dirname, 'baseline-compare.js'), compareTo, OUT], { encoding: 'utf8', windowsHide: true, timeout: 300000 });
     console.log((r.stdout || '').split(/\r?\n/).filter((l) => /^(对比|  )/.test(l)).join('\n'));
+    if (r.status !== 0) { ok = false; console.log(`对比没跑成：退出码 ${r.status}${r.error ? ` ${r.error.message}` : ''}`); }
   }
-  process.exit(0);
+  process.exit(ok ? 0 : 1);
 })().catch((e) => { console.error(e); process.exit(1); });

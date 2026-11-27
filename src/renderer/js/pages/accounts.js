@@ -206,17 +206,19 @@
       return;
     }
     if (cancelled) { active = false; api('accounts:msCancel').catch(() => {}); return; }
-    // 自动把设备码放进剪贴板，失败（例如无焦点）不打断登录流程
-    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(dc.userCode).catch(() => {});
     const step = h('div.row', { style: { justifyContent: 'center', marginTop: '16px', color: 'var(--text-2)', fontSize: '13px' } }, h('span.spinner'), h('span', '等待你在浏览器中完成登录…'));
+    // 自动把设备码放进剪贴板：复制成了才说「已自动复制」（窗口没有焦点时会失败），失败不打断登录流程
+    const first = h('li', '点击下方按钮打开微软登录页面');
+    A.copy(dc.userCode, { quiet: true }).then((ok) => { first.textContent = ok ? '点击下方按钮打开微软登录页面（代码已自动复制）' : '点击下方按钮复制代码并打开微软登录页面'; });
     A.mount(body,
       h('ol.steps',
-        h('li', '点击下方按钮打开微软登录页面（代码已自动复制）'),
+        first,
         h('li', '粘贴下面的代码，并使用拥有 Minecraft 的微软账户登录'),
         h('li', '授权完成后回到这里，启动器会自动完成登录')),
       h('div.ms-code', dc.userCode),
       h('div.row', { style: { justifyContent: 'center', marginTop: '14px' } },
-        h('button.btn.primary', { onclick: () => { A.copy(dc.userCode); api('shell:external', dc.verificationUri); } }, icon('external', 16), '复制代码并打开登录页'),
+        // 先复制完再打开浏览器：浏览器一抢走焦点，剪贴板就写不进去了
+        h('button.btn.primary', { onclick: async () => { await A.copy(dc.userCode); api('shell:external', dc.verificationUri); } }, icon('external', 16), '复制代码并打开登录页'),
         h('button.btn.ghost', { onclick: () => A.copy(dc.userCode) }, icon('copy', 16), '仅复制')),
       step);
     off = A.listen('accounts:msStep', (s) => { if (step.lastChild) step.lastChild.textContent = s; });
@@ -232,10 +234,15 @@
       if (off) { off(); off = null; }
       if (cancelled || e.cancelled) return;
       A.mount(body, A.alert({ level: 'crit', text: e.message }));
-      m.setActions([{ label: '重试', kind: 'primary', onClick: () => { setTimeout(addMicrosoft, 50); } }, { label: '关闭', kind: 'ghost' }]);
+      m.setActions([
+        { label: '修改 Client ID', kind: 'ghost', onClick: () => { setTimeout(() => clientIdDialog(addMicrosoft), 50); } },
+        { label: '重试', kind: 'primary', onClick: () => { setTimeout(addMicrosoft, 50); } },
+        { label: '关闭', kind: '' },
+      ]);
     }
   }
 
+  const CLIENT_ID_BAD = 'Client ID 格式不正确：应该是「应用程序(客户端) ID」那一串，形如 xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx';
   function clientIdDialog(after) {
     const input = h('input.input.mono', { value: state.config.msClientId || '', placeholder: '留空使用内置默认', spellcheck: 'false' });
     A.modal({
@@ -249,14 +256,15 @@
           h('li', h('span', '打开 ', h('a', { onclick: () => api('shell:external', 'https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade') }, 'Azure 门户 → 应用注册'), '，新建注册，账户类型选择「仅个人 Microsoft 账户」')),
           h('li', '在「身份验证」中开启「允许公共客户端流」'),
           h('li', h('span', '复制「应用程序(客户端) ID」，并在 ', h('a', { onclick: () => api('shell:external', 'https://aka.ms/mce-reviewappid') }, 'aka.ms/mce-reviewappid'), ' 提交申请 Minecraft API 权限（审核通过后即可正常登录）'))),
-        h('div.field', { style: { marginTop: '16px' } }, h('label', 'Client ID'), input, h('div.hint', '留空即恢复内置默认；也可以随时在「设置 → 微软登录」中修改'))),
+        h('div.field', { style: { marginTop: '16px' } }, h('label', 'Client ID'), input, h('div.hint', '留空即恢复内置默认；也可以随时在「设置 → 常规 → 微软登录」中修改'))),
       actions: [
         { label: '取消', kind: 'ghost' },
         {
-          label: '保存并继续', kind: 'primary',
+          // 从登录流程里打开的（after）：保存完接着登录；从设置里打开的：只是保存
+          label: after ? '保存并继续' : '保存', kind: 'primary',
           onClick: async () => {
             const v = input.value.trim();
-            if (v && !/^[0-9a-f-]{32,36}$/i.test(v)) { A.toast({ level: 'warn', text: 'Client ID 格式不正确' }); return false; }
+            if (v && !window.WEBURL.isClientId(v)) { A.toast({ level: 'warn', text: CLIENT_ID_BAD }); return false; }
             await A.setConfig({ msClientId: v });
             if (after) setTimeout(after, 50);
             return true;

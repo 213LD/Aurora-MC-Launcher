@@ -94,9 +94,12 @@
   async function runCheck() {
     const v = targetInfo();
     if (!v) return;
-    try {
-      checkResult = await api('mods:check', target);
-    } catch { checkResult = null; }
+    // 检查要一会儿：期间换了配置，这份结果是上一个配置的，不能画到新配置上
+    const my = target;
+    let r = null;
+    try { r = await api('mods:check', my); } catch { r = null; }
+    if (my !== target) return;
+    checkResult = r;
     renderIssues();
   }
 
@@ -216,8 +219,10 @@
   async function checkUpdates() {
     if (!target) return;
     A.toast({ level: 'info', text: t('mods.checkingUpdates'), duration: 2500 });
+    const my = target;
     try {
-      const list = await api('mods:checkUpdates', target);
+      const list = await api('mods:checkUpdates', my);
+      if (my !== target) return; // 查的时候换了配置：结果是上一个配置的
       updates = new Map(list.map((u) => [u.file, u]));
       render();
       A.toast({ level: list.length ? 'info' : 'ok', text: list.length ? `有 ${list.length} 个 Mod 可以更新` : '所有 Mod 都是最新版本' });
@@ -229,7 +234,7 @@
       await api('mods:update', target, list.map((u) => ({ path: u.path, name: u.name, latest: u.latest, enabled: u.enabled })));
       for (const u of list) updates.delete(u.file);
       render();
-    } catch (e) { A.errorToast('更新失败', e); }
+    } catch (e) { A.errorToast('更新失败', e); render(); } // 重画一遍：点「更新」时置灰的按钮放开，可以再点
   }
   const updateAll = () => doUpdate([...updates.values()]);
 

@@ -270,8 +270,9 @@
         h('div.faint', { style: { marginBottom: '6px' } }, '同一个键绑了几个动作，在游戏里可能会同时触发。可以进游戏「选项 → 控制 → 按键绑定」自己改，或者让启动器把撞车的 Mod 按键解绑（保留原版的）'),
         h('div.gs-conf', conflicts.map((c) => h('div', h('b', c.bind.replace(/^key\.(keyboard|mouse)\./, '').toUpperCase()), h('span.faint', ` ${c.actions.map(actionName).join('、')}`)))),
         h('button.btn.sm', { style: { marginTop: '8px' }, onclick: async (e) => {
-          e.currentTarget.disabled = true;
-          try { const u = await api('gamesync:unbind', v.id); A.toast({ level: 'ok', text: `已解绑 ${u.count} 个 Mod 按键（之前的设置备份了，可以撤销）` }); if (m) m.close(); } catch (err) { A.errorToast('解绑失败', err); }
+          const b = e.currentTarget;
+          b.disabled = true;
+          try { const u = await api('gamesync:unbind', v.id); A.toast({ level: 'ok', text: `已解绑 ${u.count} 个 Mod 按键（之前的设置备份了，可以撤销）` }); if (m) m.close(); } catch (err) { b.disabled = false; A.errorToast('解绑失败', err); }
         } }, icon('x', 14), '解绑撞车的 Mod 按键')) : null,
       r.backup ? h('div.faint', { style: { fontSize: '12px', marginTop: '6px' } }, `改之前的文件备份在游戏目录的 .aurora-sync-bak/${r.backup}`) : null);
     m = A.modal({

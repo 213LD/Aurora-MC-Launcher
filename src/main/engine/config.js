@@ -173,7 +173,8 @@ function load() {
   if (fresh) data.news.seenLauncher = appVersion();
   if (!data.gameDir) data.gameDir = process.env.AURORA_GAME_DIR || paths.defaultGameDir();
   if (!data.clientToken) data.clientToken = crypto.randomUUID().replace(/-/g, '');
-  save();
+  // 读出来补齐、升级以后和文件里的一样就不写：以前每次启动（还读了两遍）都重写一次，.bak 也跟着被换成同一份
+  if (r.status !== 'ok' || JSON.stringify(location.pack(data)) !== JSON.stringify(raw)) save();
   return data;
 }
 
@@ -236,9 +237,12 @@ function getVersionSettings(id) {
 }
 
 function setVersionSettings(id, s) {
+  // 界面传来的：配置名要是正常的字符串，设置要是对象（null 是删掉），里面不能有 __proto__ 这种名字
+  if (typeof id !== 'string' || !id || NOT_A_KEY.has(id)) throw new Error('配置名不对');
+  if (s !== null && (!s || typeof s !== 'object' || Array.isArray(s))) throw new Error('配置的单独设置不对');
   const all = { ...get().versionSettings };
   if (s === null) delete all[id];
-  else all[id] = { ...(all[id] || {}), ...s };
+  else all[id] = { ...(all[id] || {}), ...Object.fromEntries(Object.entries(s).filter(([k]) => !NOT_A_KEY.has(k))) };
   data.versionSettings = all;
   save();
   return all[id] || {};

@@ -37,6 +37,11 @@ async function ensure(task) {
     if (old) { checkedPath = old; checkedAt = Date.now(); return old; }
     throw new Error(`获取 authlib-injector 失败：${e.message}`);
   }
+  // 版本号来自网络、要拼进文件名：只认数字和点（和上面找旧版本的规则一样）
+  if (!meta || !/^[0-9][0-9.]*$/.test(String(meta.version || '')) || !/^[0-9]+$/.test(String(meta.build_number || ''))) {
+    if (old) { checkedPath = old; checkedAt = Date.now(); return old; }
+    throw new Error('获取 authlib-injector 失败：版本信息不对');
+  }
   const file = path.join(dir(), `authlib-injector-${meta.version}.jar`);
   const sha256 = meta.checksums && meta.checksums.sha256;
   if (!(await exists(file)) || (sha256 && (await hashFile(file, 'sha256')) !== sha256)) {
@@ -52,7 +57,7 @@ async function ensure(task) {
       return old;
     }
     // 只留最新的一个
-    for (const n of await fsp.readdir(dir())) if (n !== path.basename(file) && /^authlib-injector-.*\.jar$/.test(n)) await fsp.rm(path.join(dir(), n), { force: true });
+    for (const n of await fsp.readdir(dir())) if (n !== path.basename(file) && /^authlib-injector-.*\.jar$/.test(n)) await fsp.rm(path.join(dir(), n), { force: true }).catch(() => {}); // pitfall-ok：旧版正被开着的游戏占着，先留着，下次再删
   }
   checkedPath = file; checkedAt = Date.now();
   return file;

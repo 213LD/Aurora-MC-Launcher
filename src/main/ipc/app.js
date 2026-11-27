@@ -22,9 +22,11 @@ const { exists, totalMemMB, freeMemMB } = require('../engine/util');
 const { handle, send, getWin } = require('./bus');
 
 // 打开文件夹、日志、崩溃报告用的接口。系统打开 exe 就是运行它，这里不接受能直接运行的文件（2.0.0-pre8，全面测试）
-const RUNNABLE = /\.(exe|com|bat|cmd|msi|msp|scr|pif|cpl|hta|jar|jse?|vbe?|wsf|wsh|ps1|psm1|lnk|url|reg|msc|appx|appref-ms)[. ]*$/i;
+const RUNNABLE = /\.(exe|com|bat|cmd|msi|msp|scr|pif|cpl|hta|jar|jse?|vb[se]?|wsf|wsh|ws|ps1|psm1|psd1|lnk|url|reg|msc|appx|appxbundle|msix|appref-ms|chm|scf|sct|inf|settingcontent-ms|library-ms|search-ms|application|gadget)[. ]*$/i;
 function assertNotRunnable(p) {
-  if (typeof p !== 'string' || RUNNABLE.test(p)) throw new Error('不能用这种方式打开这个文件');
+  if (typeof p !== 'string' || !p || RUNNABLE.test(p)) throw new Error('不能用这种方式打开这个文件');
+  // NTFS 的备用数据流（a.txt:b.exe）：盘符后面再出现冒号的都不收
+  if (p.indexOf(':', 2) >= 0) throw new Error('不能用这种方式打开这个文件');
 }
 
 function register() {
@@ -67,7 +69,10 @@ function register() {
     if (kind === 'captions') {
       const exe = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'LiveCaptions.exe');
       if (await exists(exe)) {
-        require('child_process').spawn(exe, [], { detached: true, stdio: 'ignore' }).unref();
+        // 启动失败（被组策略拦了、文件坏了）是异步报的 error 事件：不接住会成为主进程里没人处理的异常
+        const cp = require('child_process').spawn(exe, [], { detached: true, stdio: 'ignore' });
+        cp.on('error', (e) => console.warn('[captions]', e.message));
+        cp.unref();
         return { title: '已打开实时辅助字幕', hint: '第一次使用时 Windows 会下载语言包；以后可以直接按 Win + Ctrl + L 开关' };
       }
       return { title: '这台电脑没有实时辅助字幕', hint: '实时辅助字幕要 Windows 11 22H2 或更新的版本。也可以在 Minecraft 里打开字幕（选项 → 音乐和声音 → 显示字幕），或者打开「默认打开游戏字幕」' };
@@ -78,7 +83,12 @@ function register() {
     const d = require('../disclaimer');
     return { version: d.VERSION, updated: d.UPDATED, sections: d.SECTIONS, accepted: config.get().disclaimerAccepted === d.VERSION };
   });
-  handle('app:acceptDisclaimer', (version) => { config.set({ disclaimerAccepted: version, disclaimerAcceptedAt: Date.now() }); return true; });
+  // 只记现在这一版声明：界面传来别的版本号（旧页面、被改过的调用）不算同意了现在这一版
+  handle('app:acceptDisclaimer', (version) => {
+    if (version !== require('../disclaimer').VERSION) throw new Error('免责声明已经更新，请重新阅读后再确认');
+    config.set({ disclaimerAccepted: version, disclaimerAcceptedAt: Date.now() });
+    return true;
+  });
   // 首次启动向导：存档方式等；flush 保证随后切换数据位置时新位置的配置里也有这些选项
   handle('app:finishSetup', async (patch = {}) => {
     const allowed = { setupDone: true };
@@ -178,8 +188,14 @@ function register() {
 
   // ── Shell / 对话框 ──
   handle('shell:open', async (p) => { assertNotRunnable(p); if (await exists(p)) return shell.openPath(p); throw new Error('路径不存在'); });
-  handle('shell:showItem', (p) => shell.showItemInFolder(p));
-  handle('shell:external', (url) => { if (/^https?:\/\//.test(url)) return shell.openExternal(url); throw new Error('仅支持网页链接'); });
+  handle('shell:showItem', (p) => { if (typeof p !== 'string' || !path.isAbsolute(p)) throw new Error('路径不对'); shell.showItemInFolder(p); });
+  handle('shell:external', (url) => {
+    // 先按网址解析一遍再打开：只收 http / https，交给系统的是解析后规范的写法
+    let u = null;
+    try { u = typeof url === 'string' ? new URL(url) : null; } catch { /* 不是网址 */ }
+    if (u && (u.protocol === 'https:' || u.protocol === 'http:')) return shell.openExternal(u.href);
+    throw new Error('仅支持网页链接');
+  });
   handle('dialog:folder', async (title, defaultPath) => {
     const r = await dialog.showOpenDialog(getWin(), { title, defaultPath, properties: ['openDirectory', 'createDirectory'] });
     return r.canceled ? null : r.filePaths[0];

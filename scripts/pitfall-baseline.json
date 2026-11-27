@@ -13,7 +13,6 @@
   "src/main/core/skins.js": 5,
   "src/main/core/vanillaplus.js": 1,
   "src/main/disclaimer.js": 1,
-  "src/main/engine/apicache.js": 1,
   "src/main/engine/config.js": 1,
   "src/main/engine/location.js": 1,
   "src/main/engine/zip.js": 1
@@ -54,7 +53,7 @@
  "吞掉的错误": {
   "src/main/core/auth/accounts.js": 2,
   "src/main/core/backup.js": 19,
-  "src/main/core/components.js": 16,
+  "src/main/core/components.js": 15,
   "src/main/core/curseforge.js": 6,
   "src/main/core/foreign.js": 17,
   "src/main/core/gamelock.js": 4,
@@ -167,6 +166,7 @@
   "scripts/regress/run.js": 1,
   "scripts/regress/soak.js": 2,
   "scripts/regress/ui.js": 7,
-  "scripts/regress/walk.js": 2
- }
+  "scripts/regress/walk.js": 1
+ },
+ "测试里写死版本的差别": {}
 }

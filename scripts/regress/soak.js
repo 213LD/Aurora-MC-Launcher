@@ -80,10 +80,11 @@ const treeStats = (pid) => new Promise((res) => {
   // 结论（rc15）：空闲在主页的那半段，每次都要有生物在走、没有「正在消失」超过 3 秒还没消失的
   const idle = sceneRows.filter((r) => r.phase === 'idle');
   const badScene = idle.filter((r) => r.staleFade > 0 || r.moving === 0);
-  fs.appendFileSync(outFile, `${JSON.stringify({ verdict: idle.length && !badScene.length ? 'scene-alive' : 'scene-stuck', idleSamples: idle.length, bad: badScene.slice(0, 5) })}
+  const alive = !!idle.length && !badScene.length;
+  fs.appendFileSync(outFile, `${JSON.stringify({ verdict: alive ? 'scene-alive' : 'scene-stuck', idleSamples: idle.length, bad: badScene.slice(0, 5) })}
 `);
   await c.quit();
   await waitExit(child);
   fs.rmSync(root, { recursive: true, force: true, maxRetries: 3, retryDelay: 300 });
-  process.exit(0);
+  process.exit(alive ? 0 : 1);
 })().catch((e) => { fs.appendFileSync(outFile, `${JSON.stringify({ error: e.message })}\n`); process.exit(1); });

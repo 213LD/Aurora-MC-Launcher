@@ -12,7 +12,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { start, BASE_CONFIG } = require('./robust-ui');
+const { start, BASE_CONFIG, lookShown } = require('./robust-ui');
 const { sleep, guard, ready } = require('./cdp');
 
 const BASE = require('./editions').BASE;
@@ -108,7 +108,7 @@ async function functional() {
 
 const LOOKS = [
   ['极光-深', {}], ['像素-深', { ui: { style: 'pixel' }, theme: 'dark' }], ['紧凑-浅', { ui: { style: 'compact' }, theme: 'light' }],
-  ['极光-1.5倍', { a11y: { zoom: 1.5 } }], ['极光-高对比', { a11y: { contrast: 'high' } }], ['极光-英文', { language: 'en' }],
+  ['极光-1.5倍', { a11y: { zoom: 1.5 } }], ['极光-高对比', { a11y: { contrast: 'on' } }], ['极光-英文', { language: 'en' }],
 ];
 async function looks() {
   let n = 0;
@@ -116,6 +116,7 @@ async function looks() {
     const a = await start(`rc8-look-${n++}`, { config: (game) => ({ ...BASE_CONFIG(game), ...SYNC, ...cfg }) });
     if (a.startError) { check('外观', `${name}：能打开`, false, a.startError); continue; }
     await ready(a.ev);
+    { const lk = await lookShown(a, cfg); check('外观', `${name}：外观真的换上了`, !lk, lk); }
     const o = await a.ev(MEASURE, 30000);
     await shot(a, `${name}-设置游戏`);
     check('外观', `${name}：上下排的行文字区按内容高，控件区撑满整行；「最大内存」的数值贴着最右`, o.rows.length >= 3 && o.rows.every((r) => r.textH <= r.contentH + 6 && r.ctrlOk) && o.memRight != null && o.memRight <= 2, { memRight: o.memRight, rows: o.rows });

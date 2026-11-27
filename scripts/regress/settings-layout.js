@@ -10,7 +10,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { start, BASE_CONFIG } = require('./robust-ui');
+const { start, BASE_CONFIG, lookShown } = require('./robust-ui');
 const { sleep, guard, ready, calm } = require('./cdp');
 
 const BASE = require('./editions').BASE;
@@ -25,7 +25,7 @@ function check(id, name, ok, detail = '') {
 const LOOKS = [
   ['极光-深', {}], ['像素-深', { ui: { style: 'pixel' }, theme: 'dark' }], ['紧凑-深', { ui: { style: 'compact' }, theme: 'dark' }],
   ['极光-浅', { theme: 'light' }], ['像素-浅', { ui: { style: 'pixel' }, theme: 'light' }], ['紧凑-浅', { ui: { style: 'compact' }, theme: 'light' }],
-  ['极光-1.5倍', { a11y: { zoom: 1.5 } }], ['极光-高对比', { a11y: { contrast: 'high' } }], ['极光-英文', { language: 'en' }],
+  ['极光-1.5倍', { a11y: { zoom: 1.5 } }], ['极光-高对比', { a11y: { contrast: 'on' } }], ['极光-英文', { language: 'en' }],
 ];
 
 // 量布局：分类栏和内容不重叠，页面不横向溢出，选中的分类只有一个
@@ -136,6 +136,7 @@ const ROWS = `(async () => {
     const a = await start(`settings-layout-${n++}`, { config: (game) => ({ ...BASE_CONFIG(game), migrateAsk: false, ...cfg }) });
     if (a.startError) { check('外观', `${name}：能打开`, false, a.startError); continue; }
     await ready(a.ev);
+    { const lk = await lookShown(a, cfg); check('外观', `${name}：外观真的换上了`, !lk, lk); }
     await a.ev("document.querySelectorAll('.modal-back').forEach((m) => m.remove()); A.go('settings'); 1");
     await calm(a.ev);
     const wide = await a.ev(LAYOUT);

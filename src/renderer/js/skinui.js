@@ -14,7 +14,7 @@
   const MODEL = [{ value: 'classic', label: '经典（Steve）' }, { value: 'slim', label: '纤细（Alex）' }];
 
   function open(account) {
-    const texUrl = (u) => (typeof u === 'string' ? u.replace(/^http:\/\/(?!127\.0\.0\.1(?::|\/|$)|localhost(?::|\/|$))/i, 'https://') : u);
+    const texUrl = window.WEBURL.toHttps;
     const acc = () => state.accounts.accounts.find((a) => a.id === account.id) || account;
     const offline = account.type === 'offline';
     const st = { library: null, defaults: null, layer: true, walk: true, busy: false };
@@ -52,7 +52,7 @@
         try { patch.cape = cape ? await A.skinTools.normalizeCape(cape) : null; } catch { /* 披风不对就不要了 */ }
       }
       // 勾了「有披风的话也一起用」但对方没有披风时说一声（rc4：Notch 现在就没有披风，以前什么都不说，像是披风没显示出来）
-      await set(patch, `已换上${name ? `「${A.nm(name)}」的` : '新'}皮肤${n.legacy ? '（旧版 64×32 已自动转换）' : ''}${noCape ? '；这位玩家现在没有戴披风' : ''}${patch.cape ? '；披风在背后，点「看披风」转过去看' : ''}`);
+      await set(patch, `已换上${name ? `「${A.nm(name)}」的` : '新的'}皮肤${n.legacy ? '（旧版 64×32 已自动转换）' : ''}${noCape ? '；这位玩家现在没有戴披风' : ''}${patch.cape ? '；披风在背后，点「看披风」转过去看' : ''}`);
     }
 
     function pickFile(kind) {
@@ -93,7 +93,7 @@
             onClick: async () => {
               const value = input.value.trim();
               if (!value) { A.toast({ level: 'warn', text: '请先填写内容' }); return false; }
-              if (!A.offline.check()) return;
+              if (!A.offline.check()) return false; // 断网：对话框留着（填的内容还在），联网后再点
               const r = await api('skins:fetch', { source: st2.source, value });
               await useSkin(r.skin, { model: r.model, cape: st2.source !== 'url' && withCape.checked ? r.cape : undefined, name: r.name, noCape: st2.source !== 'url' && withCape.checked && !r.cape });
               return true;

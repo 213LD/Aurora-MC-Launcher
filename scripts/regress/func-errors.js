@@ -72,6 +72,117 @@ const SCENARIOS = {
     if (require('./editions').privateRepo) check('lang', '语言文件这个阶段还留在原处', fs.existsSync(path.join(H.REPO, 'src', 'shared', 'i18n', 'tr-zh-TW.js')) && fs.existsSync(path.join(H.REPO, 'src', 'shared', 'i18n', 'tr-zh-HK.js')));
   },
 
+  // ── 打开文件、文件夹、网页的接口：系统打开能运行的文件就是运行它 ──
+  async 'shell-guard'() {
+    const { root } = setup('shell-guard');
+    const { shell } = require('electron');
+    const calls = [];
+    shell.openPath = async (p) => { calls.push(['open', p]); return ''; };
+    shell.showItemInFolder = (p) => { calls.push(['show', p]); };
+    shell.openExternal = async (u) => { calls.push(['url', u]); };
+    const bus = ipc();
+    const mk = (n) => { const f = path.join(root, n); fs.writeFileSync(f, 'x'); return f; };
+    const runnable = ['a.vbs', 'a.VBS', 'a.chm', 'a.scf', 'a.exe', 'a.exe. ', 'a.settingcontent-ms'].map(mk);
+    const ads = `${mk('note.txt')}:evil.exe`;
+    const refused = [];
+    for (const p of [...runnable, ads, 42, '']) if ((await bus.call('shell:open', p)).ok) refused.push(String(p));
+    const okOpen = await bus.call('shell:open', root);
+    check('shell', '打开文件：能直接运行的（.vbs .chm .scf .exe…）和带备用数据流的（a.txt:b.exe）都不打开；普通文件夹照常打开', refused.length === 0 && okOpen.ok && calls.filter((c) => c[0] === 'open').length === 1, { opened: refused, calls });
+    const badShow = [];
+    for (const p of [42, 'relative/x', '']) if ((await bus.call('shell:showItem', p)).ok) badShow.push(String(p));
+    const okShow = await bus.call('shell:showItem', path.join(root, 'note.txt'));
+    check('shell', '在文件夹里显示：不是绝对路径的不收', badShow.length === 0 && okShow.ok, { accepted: badShow });
+    const badUrl = [];
+    for (const u of ['javascript:alert(1)', 'file:///C:/Windows/system32/calc.exe', 'ms-settings:', 'https//x', 42]) if ((await bus.call('shell:external', u)).ok) badUrl.push(String(u));
+    const okUrl = await bus.call('shell:external', 'https://example.com/a b');
+    const sent = calls.filter((c) => c[0] === 'url').map((c) => c[1]);
+    check('shell', '打开网页：只收 http / https，交给系统的是规范化以后的网址', badUrl.length === 0 && okUrl.ok && sent.length === 1 && sent[0] === 'https://example.com/a%20b', { accepted: badUrl, sent });
+    // 同意免责声明：只认现在这一版；扫描皮肤文件夹：只收绝对路径
+    const ver = require(path.join(H.REPO, 'src', 'main', 'disclaimer')).VERSION;
+    const oldVer = await bus.call('app:acceptDisclaimer', '0.1');
+    const cur = await bus.call('app:acceptDisclaimer', ver);
+    check('shell', '同意免责声明：传来的不是现在这一版就不记', !oldVer.ok && cur.ok && core('config').get().disclaimerAccepted === ver, { oldVer, cur });
+    const rel = await bus.call('skins:scanFolder', 'relative/dir');
+    const abs = await bus.call('skins:scanFolder', root);
+    check('shell', '扫描皮肤文件夹：相对路径不收，绝对路径照常扫', !rel.ok && abs.ok, { rel, abs: abs.ok });
+  },
+
+  // ── 加载器安装器（Java 进程）卡住：一直不出声就结束它，不让安装任务永远转圈；一直在打印的照常等它装完 ──
+  async 'installer-stall'() {
+    setup('installer-stall');
+    const loaders = core('loaders');
+    const node = process.env.AURORA_NODE || 'node';
+    const task = () => ({ update() {}, signal: new AbortController().signal });
+    const t0 = Date.now();
+    const quiet = await loaders.runJava(node, ['-e', 'setTimeout(() => {}, 60000)'], process.cwd(), task(), { idleMs: 1500 }).then(() => 'resolved', (e) => e.message);
+    const secs = (Date.now() - t0) / 1000;
+    check('installer', `一直不出声的安装器：到时间就结束，说清楚是卡住了（${secs.toFixed(1)} 秒）`, /没有任何动静/.test(quiet) && secs < 10, quiet);
+    const chatty = await loaders.runJava(node, ['-e', 'let n = 0; const t = setInterval(() => { console.log("step " + n); if (++n > 5) { clearInterval(t); } }, 500);'], process.cwd(), task(), { idleMs: 1500 }).then((tail) => tail, (e) => `出错：${e.message}`);
+    check('installer', '一直在打印的安装器：比卡死的时限跑得久也照常装完', Array.isArray(chatty) && chatty.includes('step 5'), chatty);
+  },
+
+  // ── Mod 配置器按方案新建配置：装到一半失败就整个删掉，不留半个配置；装进已有配置失败时不删它 ──
+  async 'planner-fail'() {
+    setup('planner-fail');
+    const loaders = core('loaders');
+    const planner = core('planner');
+    const versions = core('versions');
+    const real = { list: loaders.list, install: loaders.install };
+    loaders.list = async () => [{ version: '0.15.0', recommended: true }];
+    loaders.install = async ({ name }) => { await fakeVersion(name, { extra: { clientVersion: '1.20.1' } }); };
+    const bad = { status: 'ok', projectId: 'p', title: 'X', version: { id: 'v', file: { url: 'https://127.0.0.1:1/x.jar', filename: '..\\..\\escape.jar', sha1: '0'.repeat(40), size: 1 } } };
+    const plan = { id: 'pl', name: 'Plan', mc: '1.20.1', loader: 'fabric', items: [] };
+    const task = { update() {}, signal: new AbortController().signal };
+    try {
+      const e1 = await planner.install({ plan, resolved: { items: [bad] }, target: { mode: 'new', name: 'HalfPlan' } }, task).then(() => null, (e) => e.message);
+      check('planner', '按方案新建配置，下载失败：报错，半个配置删掉了', !!e1 && !fs.existsSync(versions.versionDir('HalfPlan')), { e1: e1 && e1.slice(0, 80), left: fs.existsSync(versions.versionDir('HalfPlan')) });
+      await fakeVersion('Keep', { extra: { clientVersion: '1.20.1' }, loader: { type: 'fabric' } });
+      const info = await versions.versionInfo('Keep');
+      const e2 = info && info.loader ? await planner.install({ plan, resolved: { items: [bad] }, target: { mode: 'existing', versionId: 'Keep' } }, task).then(() => null, (e) => e.message) : 'skip';
+      check('planner', '装进已有的配置失败：这个配置不删', fs.existsSync(versions.versionDir('Keep')), { e2: e2 && String(e2).slice(0, 80) });
+    } finally { Object.assign(loaders, real); }
+  },
+
+  // ── 网络：限了大小的下载边读边数，超了就停；已经取消的请求不再发 ──
+  async 'net-caps'() {
+    setup('net-caps');
+    const net = core('net');
+    const skins = core('skins');
+    let sent = 0;
+    const chunk = Buffer.alloc(64 * 1024, 7);
+    const srv = http.createServer((req, res) => {
+      if (req.url === '/small') { res.writeHead(200, { 'content-type': 'image/png', 'content-length': 100 }); res.end(Buffer.alloc(100, 1)); return; }
+      if (req.url === '/declared') { res.writeHead(200, { 'content-length': 50 * 1024 * 1024 }); res.write(chunk); return; } // 说了 50 MB，只发一块就不动了
+      // 不报长度、一直往下发（最多 40 MB）
+      res.writeHead(200, { 'content-type': 'image/png' });
+      let i = 0;
+      const pump = () => { if (res.destroyed || i++ > 640) { res.end(); return; } sent += chunk.length; res.write(chunk, () => setImmediate(pump)); };
+      pump();
+    });
+    await new Promise((r) => srv.listen(0, '127.0.0.1', r));
+    const url = (p) => `http://127.0.0.1:${srv.address().port}${p}`;
+    try {
+      const small = await net.getBuffer(url('/small'), { maxBytes: 2 * 1024 * 1024 }).then((b) => b.length, (e) => e.message);
+      const t0 = Date.now();
+      const declared = await net.getBuffer(url('/declared'), { maxBytes: 2 * 1024 * 1024, timeout: 15000 }).then(() => '读完了', (e) => e.message);
+      const declaredSecs = (Date.now() - t0) / 1000;
+      const stream = await net.getBuffer(url('/stream'), { maxBytes: 2 * 1024 * 1024 }).then(() => '读完了', (e) => e.message);
+      await sleep(300); // pitfall-ok：等服务器那边把已经发出去的数一数，再看它一共发了多少
+      check('net', '限了大小的下载：小的照常读完；报了超大长度的马上停；不报长度一直发的，读过上限就停', small === 100 && /太大/.test(declared) && declaredSecs < 5 && /太大/.test(stream) && sent < 20 * 1024 * 1024, { small, declared, declaredSecs, stream, sentMB: +(sent / 1048576).toFixed(1) });
+      const skin = await skins.fetchSkin({ source: 'url', value: url('/stream') }).then(() => '收下了', (e) => e.message);
+      check('net', '按网址导入皮肤：超过 2 MB 的「图片」不收，说「图片太大了」', /图片太大了/.test(skin), skin);
+      const ctrl = new AbortController(); ctrl.abort();
+      const t1 = Date.now();
+      const ab = await net.request(url('/small'), { signal: ctrl.signal }).then(() => '发出去了', (e) => (e.cancelled ? '取消' : e.message));
+      check('net', '已经取消的请求：马上报取消，不发出去', ab === '取消' && Date.now() - t1 < 500, ab);
+      // 外置登录的认证服务器：外网的明文 http 不收（密码会明文传出去）；本机、局域网的照常
+      const ygg = core('auth/yggdrasil');
+      const plain = await ygg.resolve('http://example.com/api/yggdrasil').then(() => '收下了', (e) => e.message);
+      const local = await ygg.resolve(url('/small')).then(() => '收下了', (e) => e.message);
+      check('net', '外置登录：外网的明文 http 认证服务器不收、说清楚原因；本机的 http 照常去连', /不加密的 http/.test(plain) && !/不加密的 http/.test(local), { plain, local });
+    } finally { srv.close(); }
+  },
+
   // ── 公开导出（只导出到隔离目录，不建仓库、不推送）──
   async 'export-public'() {
     const { root } = setup('export-public');
@@ -80,7 +191,13 @@ const SCENARIOS = {
     const target = path.join(root, 'public-export');
     const { spawnSync } = require('child_process');
     const node = process.env.AURORA_NODE || 'node';
-    const r = spawnSync(node, [path.join(H.REPO, 'scripts', 'export-public.js'), target], { cwd: H.REPO, encoding: 'utf8', windowsHide: true, timeout: 120000 });
+    // 测试时工作区一般有没提交的改动：要推送的导出会拒绝，这里加 --allow-dirty 照样查公开仓库、照样导出
+    const dirty = spawnSync('git', ['status', '--porcelain'], { cwd: H.REPO, encoding: 'utf8', windowsHide: true }).stdout.trim();
+    if (dirty) {
+      const no = spawnSync(node, [path.join(H.REPO, 'scripts', 'export-public.js'), path.join(root, 'refused')], { cwd: H.REPO, encoding: 'utf8', windowsHide: true, timeout: 120000 });
+      check('export', '工作区有没提交的改动时，要推送的导出停下、什么都不导出', no.status === 1 && /没提交的改动/.test(no.stderr || '') && !fs.existsSync(path.join(root, 'refused')), `${no.status} ${`${no.stderr || ''}`.slice(0, 200)}`);
+    }
+    const r = spawnSync(node, [path.join(H.REPO, 'scripts', 'export-public.js'), target, '--allow-dirty'], { cwd: H.REPO, encoding: 'utf8', windowsHide: true, timeout: 120000 });
     check('export', '公开导出的检查通过', r.status === 0, `${r.stdout || ''}${r.stderr || ''}`.trim().slice(-600));
     const has = (f) => fs.existsSync(path.join(target, f));
     const hant = ['src/shared/i18n/tr-zh-TW.js', 'src/shared/i18n/tr-zh-HK.js', 'scripts/i18n-hant-overrides.json', 'scripts/i18n.py'];
@@ -823,6 +940,13 @@ const SCENARIOS = {
     config.set({ java: { selected: inGamma } });
     await java.uninstallRuntime(path.join(rt, 'java-runtime-gamma'));
     check('5-1', '卸载的正是全局选的那个：改回自动（行为不变）', config.get().java.selected === 'auto', config.get().java.selected);
+    // 路径大小写不一样（盘符小写、文件夹名大写）也认得是 Aurora 下载的；运行时文件夹外面的、就是运行时文件夹本身的都不删
+    await fsp.mkdir(path.join(rt, 'java-runtime-delta', 'bin'), { recursive: true });
+    const odd = path.join(rt, 'JAVA-RUNTIME-DELTA').replace(/^[A-Z]:/, (d) => d.toLowerCase());
+    const okOdd = await java.uninstallRuntime(odd).then(() => true, (e) => e.message);
+    const outside = await java.uninstallRuntime(data).then(() => '删了', (e) => e.message);
+    const self = await java.uninstallRuntime(rt).then(() => '删了', (e) => e.message);
+    check('5-1', '卸载 Java：路径大小写不同也认得出；运行时文件夹外面的、运行时文件夹本身都不删', okOdd === true && !fs.existsSync(path.join(rt, 'java-runtime-delta')) && /只能删除/.test(outside) && /只能删除/.test(self) && fs.existsSync(rt), { okOdd, outside, self });
   },
 
   // ── 检测 Java 时不算没装完的：解压到一半的 *.tmp、正在下载的官方运行时 ──

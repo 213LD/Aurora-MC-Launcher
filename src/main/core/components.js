@@ -175,8 +175,11 @@ async function apply(id, target, p, task, { label } = {}) {
   // 1. 换 MC 版本前备份存档（有世界才备份，失败就停下）
   if (p.mcChanged) {
     const backup = require('./backup');
-    const worlds = await backup.worlds(id).catch(() => []);
-    if (worlds && worlds.length) {
+    // worlds() 给的是 { …, worlds: [世界] }；读不出存档就不换版本，不在没备份的情况下往下走
+    let res;
+    try { res = await backup.worlds(id); } catch (e) { throw new Error(`读不出这个配置的存档，先不换版本（${e.message}）`); }
+    const worlds = res && Array.isArray(res.worlds) ? res.worlds : [];
+    if (worlds.length) {
       task.update({ detail: '先备份存档…', progress: -1 });
       const entry = await backup.create(id, { type: 'saves', auto: 'component' }, task);
       record.backup = entry && entry.file;

@@ -133,6 +133,11 @@ const SCENARIOS = {
     mk(path.join(mi, 'minecraft', 'saves', 'MMC World', 'level.dat'), 'world-mmc');
     // 坏的实例不能影响别的
     mk(path.join(src, 'mmc', 'instances', 'Broken', 'mmc-pack.json'), '{bad');
+    // 老的 MultiMC 实例：Forge 的版本号带着游戏版本（1.12.2-14.23.5.2860），装的时候会拼成 1.12.2-1.12.2-…
+    const old = path.join(src, 'mmc-old', 'instances', 'OldForge');
+    mk(path.join(old, 'instance.cfg'), ['[General]', 'name=OldForge', ''].join('\n'));
+    mk(path.join(old, 'mmc-pack.json'), JSON.stringify({ components: [{ uid: 'net.minecraft', version: '1.12.2' }, { uid: 'net.minecraftforge', version: '1.12.2-14.23.5.2860' }] }));
+    mk(path.join(old, 'minecraft', 'options.txt'), 'x');
     mk(path.join(src, 'mmc', 'instances', 'NoMc', 'mmc-pack.json'), JSON.stringify({ components: [{ uid: 'org.lwjgl3' }] }));
     // 只有存档的文件夹
     const worlds = path.join(src, 'justworlds');
@@ -163,6 +168,9 @@ const SCENARIOS = {
     check('识别', '直接选一个 Prism 实例文件夹也行', iOne.ok && iOne.instances.length === 1);
     const iMmc = await inspect(path.join(src, 'mmc'));
     check('识别', 'MultiMC：坏的实例跳过，好的还在', iMmc.ok && iMmc.instances.length === 1 && iMmc.instances[0].loader.type === 'forge', iMmc.instances && iMmc.instances.map((x) => x.key));
+    const iOld = await inspect(path.join(src, 'mmc-old'));
+    const lo = iOld.instances && iOld.instances[0] && iOld.instances[0].loader;
+    check('识别', 'MultiMC：老实例 Forge 版本号带着游戏版本，去掉前缀再装', !!lo && lo.type === 'forge' && lo.version === '14.23.5.2860', lo);
     const iWorlds = await inspect(worlds);
     check('识别', '只有存档的文件夹：只能导存档', iWorlds.ok && iWorlds.instances[0].savesOnly && iWorlds.instances[0].worlds === 1);
     const iEmpty = await inspect(path.join(root, 'fakehome'));
@@ -252,7 +260,7 @@ const SCENARIOS = {
   /** 真实的游戏文件夹，只读 */
   async real() {
     const SRC = process.env.AURORA_FOREIGN_SRC;
-    if (!SRC) { console.log('  没设 AURORA_FOREIGN_SRC，跳过'); finish(); return; }
+    if (!SRC) { check('real', '没跑：缺环境变量 AURORA_FOREIGN_SRC（没跑不能算通过）', false); finish(2); return; }
     const { root, game } = setup('foreign-real');
     const box = seal(root);
     fakeNet();

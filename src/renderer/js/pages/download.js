@@ -171,8 +171,12 @@
     return LOADER_TYPES.filter((l) => allow.includes(l.type));
   }
 
+  // 版本清单还没读完时连点两下「安装」：只开一个对话框
+  let opening = false;
   async function installDialog(mc, dopts = {}) {
-    if (!state.manifest) await loadManifest(false);
+    if (opening) return;
+    opening = true;
+    try { if (!state.manifest) await loadManifest(false); } finally { opening = false; }
     const entry = state.manifest && state.manifest.versions.find((v) => v.id === mc);
     let loaderTypes = loadersFor(mc);
     if (dopts.requireLoader) loaderTypes = loaderTypes.filter((l) => l.type);

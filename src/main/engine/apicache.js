@@ -11,6 +11,7 @@ const path = require('path');
 const crypto = require('crypto');
 const paths = require('./paths');
 const { rmrf } = require('./util');
+const { writeFileSafe } = require('./fileops');
 
 const MAX_AGE = 30 * 24 * 3600 * 1000;
 const MAX_BYTES = 200 * 1024 * 1024;
@@ -28,9 +29,8 @@ async function readDisk(ns, key) {
 
 function writeDisk(ns, key, entry) {
   const f = fileOf(ns, key);
-  fsp.mkdir(path.dirname(f), { recursive: true })
-    .then(() => fsp.writeFile(f, JSON.stringify({ k: key, t: entry.t, v: entry.v })))
-    .catch(() => {});
+  // 先写临时文件再换上去：写到一半退出，下次读到的不会是半截 JSON
+  writeFileSafe(f, JSON.stringify({ k: key, t: entry.t, v: entry.v })).catch(() => {});
   if (!pruned) { pruned = true; setTimeout(() => prune().catch(() => {}), 30000); }
 }
 

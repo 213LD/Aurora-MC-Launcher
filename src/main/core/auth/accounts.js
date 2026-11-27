@@ -13,6 +13,7 @@ const ms = require('./microsoft');
 const ygg = require('./yggdrasil');
 const skins = require('../skins');
 const { nm } = require('../../../shared/i18n');
+const { toHttps } = require('../../../shared/weburl');
 
 let state = null;
 
@@ -67,7 +68,7 @@ function publicView(a) {
   const custom = a.type === 'offline' ? skins.viewOf(a) : null;
   const cached = a.type === 'microsoft' ? skins.cachedViewOf(a) : null;
   const upgrade = (x) => (x && x.url && a.type === 'microsoft'
-    ? { ...x, url: x.url.replace(/^http:\/\/(?!127\.0\.0\.1(?::|\/|$)|localhost(?::|\/|$))/i, 'https://') }
+    ? { ...x, url: toHttps(x.url) }
     : x || null);
   return {
     id: a.id,
@@ -118,7 +119,8 @@ async function addOffline(name, customUuid) {
   return list();
 }
 
-const skinSyncAt = new Map();
+const skinSyncAt = new Map(); // 账户 id → 上次补拉的时间（补拉失败时，隔一阵子再试）
+const SKIN_RETRY_MS = 10 * 60000;
 let skinBackfillPromise = null;
 
 async function syncMicrosoftSkin(acc) {
@@ -134,13 +136,15 @@ async function syncMicrosoftSkin(acc) {
   return true;
 }
 
+/** 有正版皮肤、但还没存到本地或还没进皮肤中心（升级上来的老账户、上次没下成功的）；本来就没设皮肤的不用拉 */
+const needsSkinSync = (a) => !!(a && a.type === 'microsoft' && a.skin && a.skin.url
+  && (!a.skinCache || !a.skinCache.syncedLib || !skins.cachedViewOf(a)));
+
 /** 启动或升级后后台补拉尚未缓存/入库的微软正版皮肤 */
 function syncMissingMicrosoftSkins(onChanged) {
   load();
   const now = Date.now();
-  const todo = state.accounts.filter((a) => a && a.type === 'microsoft'
-    && (!a.skinCache || !a.skinCache.syncedLib || !null)
-    && now - (skinSyncAt.get(a.id) || 0) > 60000);
+  const todo = state.accounts.filter((a) => needsSkinSync(a) && now - (skinSyncAt.get(a.id) || 0) > SKIN_RETRY_MS);
   if (!todo.length || skinBackfillPromise) return skinBackfillPromise;
   skinBackfillPromise = (async () => {
     let updated = false;
@@ -172,6 +176,8 @@ async function upsertMicrosoft(result) {
   });
   if (!result.skin) delete acc.skinCache;
   if (result.msRefreshToken) acc.msRefreshToken = enc(result.msRefreshToken);
+  // 刷新令牌只能用签发它的那个 Azure 应用来刷：记下来，之后设置里换了 Client ID 也不影响这个账户
+  if (result.clientId) acc.msClientId = result.clientId;
   state.selected = id;
   await save();
   try { await syncMicrosoftSkin(acc); } catch (e) { console.warn('[accounts] 同步微软账户皮肤失败', e.message); }
@@ -212,6 +218,12 @@ async function yggLogin({ server, username, password, profileId } = {}) {
 
 /** 外置登录账户：令牌还能用就照旧，不能用就刷新；refresh 也失败就标「需要重新登录」 */
 async function yggEnsure(acc, onStep = () => {}) {
+  // 以前的版本导出账户时漏了认证服务器：这样导进来的账户不知道去哪登录，说清楚怎么办
+  if (!acc.server || !acc.server.root) {
+    acc.needRelogin = true; await save();
+    const e = new Error(`外置登录账户「${nm(acc.name)}」缺少认证服务器的信息（可能是从旧版本导出的数据导进来的），请删掉它，再用「外置登录」重新添加`);
+    e.needRelogin = true; throw e;
+  }
   const ct = config.get().clientToken;
   let token = dec(acc.accessToken);
   const relogin = async () => { acc.needRelogin = true; await save(); const e = new Error(`${nm(acc.server.name)} 的登录信息已失效，请重新登录`); e.needRelogin = true; return e; };
@@ -246,8 +258,8 @@ async function msWait(onStep) {
   try {
     const token = await ms.pollDeviceCode(clientId, dc, controller.signal);
     onStep('已授权，正在登录…');
-    const result = await ms.loginWithMsToken(token, onStep);
-    return await upsertMicrosoft(result);
+    const result = await ms.loginWithMsToken(token, onStep, controller.signal);
+    return await upsertMicrosoft({ ...result, clientId });
   } finally {
     if (pending && pending.controller === controller) pending = null;
   }
@@ -257,7 +269,16 @@ function msCancel() {
   if (pending) { pending.controller.abort(); pending = null; }
 }
 
-async function refresh(id, onStep = () => {}) {
+// 同一个账户同时刷新两次（启动游戏和账户页一起）：微软每次刷新都换一个新的刷新令牌，两个请求拿同一个旧令牌会有一个失败。合成一次
+const refreshing = new Map();
+function refresh(id, onStep = () => {}) {
+  if (refreshing.has(id)) return refreshing.get(id);
+  const p = refreshOnce(id, onStep).finally(() => refreshing.delete(id));
+  refreshing.set(id, p);
+  return p;
+}
+
+async function refreshOnce(id, onStep) {
   load();
   const acc = state.accounts.find((a) => a.id === id);
   if (!acc) throw new Error('账户不存在');
@@ -268,7 +289,7 @@ async function refresh(id, onStep = () => {}) {
     return publicView(acc);
   }
   if (acc.type !== 'microsoft') return publicView(acc);
-  const clientId = msClientId();
+  const clientId = acc.msClientId || msClientId();
   const rt = dec(acc.msRefreshToken);
   if (!clientId || !rt) {
     acc.needRelogin = true; await save();
@@ -279,7 +300,7 @@ async function refresh(id, onStep = () => {}) {
     const token = await ms.refreshMsToken(clientId, rt);
     const result = await ms.loginWithMsToken(token, onStep);
     if (!result.msRefreshToken) result.msRefreshToken = rt;
-    return await upsertMicrosoft(result);
+    return await upsertMicrosoft({ ...result, clientId });
   } catch (e) {
     if (e.needRelogin) { acc.needRelogin = true; await save(); }
     throw e;
@@ -306,7 +327,14 @@ async function getLaunchAuth(id, onStep) {
   }
   let a = acc;
   if (!acc.mcExpiresAt || acc.mcExpiresAt - Date.now() < 10 * 60 * 1000 || !dec(acc.mcAccessToken)) {
-    await refresh(acc.id, onStep);
+    try {
+      await refresh(acc.id, onStep);
+    } catch (e) {
+      // 快过期了提前刷新，但这会儿连不上微软（断网、服务器出错）：手里的令牌还没过期就先用它进游戏，不挡着玩家
+      const stillValid = !e.needRelogin && !e.cancelled && acc.mcExpiresAt && acc.mcExpiresAt - Date.now() > 60 * 1000 && dec(acc.mcAccessToken);
+      if (!stillValid) throw e;
+      onStep('暂时刷新不了微软登录，先用现有的登录进游戏');
+    }
     a = state.accounts.find((x) => x.id === acc.id);
   }
   return { type: 'microsoft', name: a.name, uuid: a.uuid, accessToken: dec(a.mcAccessToken), xuid: a.xuid || '0', userType: 'msa' };
@@ -352,6 +380,8 @@ function exportList(src) {
       const out = { id: a.id, type: a.type, name: a.name, uuid: a.uuid, addedAt: a.addedAt };
       if (a.type === 'offline' && a.custom) out.custom = a.custom;
       if (a.type !== 'offline') { out.skin = a.skin; out.cape = a.cape; out.needRelogin = true; }
+      // 外置登录要知道是哪个认证服务器（只有名字和地址，不含令牌）；以前漏了它，导进来以后刷新、启动直接报错
+      if (a.type === 'yggdrasil' && a.server && a.server.root) out.server = { name: a.server.name || '', root: a.server.root, homepage: a.server.homepage || '' };
       return out;
     }),
   };

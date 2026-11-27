@@ -252,7 +252,7 @@ async function buildLaunch(id, auth, java, task, bo = {}) {
   }
   if (win.fullscreen) game.push('--fullscreen');
   if (autoJoin && !hasQuickPlay) {
-    const [host, port] = autoJoin.split(':');
+    const { host, port } = hostPort(autoJoin);
     game.push('--server', host, '--port', port || '25565');
   }
   game.push(...splitArgs(vs.gameArgs || cfg.gameArgs || ''));
@@ -548,7 +548,7 @@ async function launch(id, task, opts = {}) {
   // 日志里始终没有识别到窗口创建时的兜底
   setTimeout(() => {
     if (game.state === 'starting') { game.state = 'running'; emit('game:state', publicGame(game)); }
-  }, 30000);
+  }, 30000).unref(); // 只是兜底：不为它拖住退出
 
   // 给出 3 秒观察期，快速失败的情况直接报错
   await Promise.race([exited, new Promise((r) => setTimeout(r, 3000))]);
@@ -601,6 +601,16 @@ function waitOutcome(id, { timeout = 240000, survive = 12000, signal, onTick } =
   });
 }
 
+/** 「服务器地址[:端口]」拆开：IPv6 要写成 [::1]:25565（不带方括号、冒号又不止一个的，整个当地址） */
+function hostPort(addr) {
+  const a = String(addr || '').trim();
+  const v6 = /^\[([^\]]+)\](?::(\d+))?$/.exec(a);
+  if (v6) return { host: v6[1], port: v6[2] || '' };
+  if ((a.match(/:/g) || []).length > 1) return { host: a, port: '' };
+  const [host, port = ''] = a.split(':');
+  return { host, port };
+}
+
 async function waitExit(id, ms = 15000) {
   const g = games.get(id);
   const end = Date.now() + ms;
@@ -628,6 +638,8 @@ function kill(id) {
   } catch { /* ignore */ }
 }
 function running() { return [...games.values()].filter((g) => g.state !== 'exited').length; }
+// 退出启动器：玩家自己开的游戏照常玩下去；一键修复「试启动」开的那一局是启动器替玩家开的，跟着一起关掉，不留在后台
+require('../engine/shutdown').onQuit(() => { for (const g of games.values()) if (g.test && g.state !== 'exited') kill(g.id); });
 function clearExited() { for (const [id, g] of games) if (g.state === 'exited') games.delete(id); }
 
-module.exports = { launch, restoreOnboard, listGames, getLog, kill, running, clearExited, setEmitter, autoMemory, memoryFor, waitOutcome, waitExit, getGame, ensureFirstOptions, CRASH_RULES };
+module.exports = { hostPort, launch, restoreOnboard, listGames, getLog, kill, running, clearExited, setEmitter, autoMemory, memoryFor, waitOutcome, waitExit, getGame, ensureFirstOptions, CRASH_RULES };

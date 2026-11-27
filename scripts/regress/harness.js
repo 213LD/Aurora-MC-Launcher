@@ -109,7 +109,8 @@ function finish(code = 0) {
   // 覆盖率：app.exit 不走 Node 的退出流程，要自己写一次
   if (process.env.NODE_V8_COVERAGE) { try { require('v8').takeCoverage(); } catch { /* 没开就算了 */ } }
   if (process.env.AURORA_REGRESS_OUT) fs.appendFileSync(process.env.AURORA_REGRESS_OUT, `${results.map((r) => JSON.stringify(r)).join('\n')}\n`, 'utf8');
-  setTimeout(() => app.exit(code), 100);
+  // 有失败就非零退出：单独跑脚本时看退出码也知道没过（run.js 照旧按每一项的结果汇总）
+  setTimeout(() => app.exit(code || (results.some((r) => !r.ok) ? 1 : 0)), 100);
 }
 
 // 等一件事成立（最多等多久），代替固定的 sleep（cdp.js）

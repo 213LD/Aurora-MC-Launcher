@@ -39,7 +39,27 @@ function fakeVersion(game, id, extra = {}) {
 }
 
 /** 起一个关在隔离层里的启动器。prepare(ctx) 在启动前写数据 */
-async function start(name, { prepare, config, badnet, keepData, root: rootDir, appDir, stats, javas, foreign, args = [] } = {}) {
+/** 外观相关的配置项只能取启动器认得的值 */
+const LOOK_VALUES = { theme: ['dark', 'light'], 'ui.style': ['aurora', 'pixel', 'compact'], 'a11y.contrast': ['on', 'off', 'auto'], 'a11y.motion': ['auto', 'full', 'soft', 'reduce'] };
+function badLook(cfg) {
+  for (const [key, ok] of Object.entries(LOOK_VALUES)) {
+    const v = key.split('.').reduce((o, k) => (o && typeof o === 'object' ? o[k] : undefined), cfg);
+    if (v !== undefined && !ok.includes(v)) return `${key} = ${JSON.stringify(v)}（只认 ${ok.join(' / ')}）`;
+  }
+  return '';
+}
+/** 页面上真的换成了这个外观：高对比度、深浅色、风格（返回不对的地方，空字符串就是对的） */
+const lookShown = (a, cfg = {}) => a.ev(`(() => {
+  const de = document.documentElement; const out = [];
+  const c = ${JSON.stringify({ hc: cfg.a11y && cfg.a11y.contrast, theme: cfg.theme, style: cfg.ui && cfg.ui.style })};
+  if (c.hc === 'on' && !de.classList.contains('hc')) out.push('高对比度没打开');
+  if (c.hc === 'off' && de.classList.contains('hc')) out.push('高对比度没关');
+  if ((c.theme === 'light' || c.theme === 'dark') && de.dataset.theme !== c.theme) out.push('深浅色是 ' + de.dataset.theme);
+  if (c.style && de.dataset.style !== c.style) out.push('风格是 ' + de.dataset.style);
+  return out.join('；');
+})()`);
+
+async function start(name, { prepare, config, badnet, keepData, root: rootDir, appDir, stats, javas, foreign, poison, args = [] } = {}) {
   const root = rootDir || path.join(BASE, 'robust-ui', name);
   if (!keepData) await fs.promises.rm(root, { recursive: true, force: true });
   const data = path.join(root, 'data');
@@ -48,7 +68,12 @@ async function start(name, { prepare, config, badnet, keepData, root: rootDir, a
   fs.mkdirSync(game, { recursive: true });
   const ctx = { root, data, game };
   if (!keepData) {
-    fs.writeFileSync(path.join(data, 'config.json'), JSON.stringify(config ? config(game) : BASE_CONFIG(game)));
+    const cfg = config ? config(game) : BASE_CONFIG(game);
+    // 外观的取值写错了，启动器会当成默认值，那一遍其实测的是普通深色（高对比度写成 'high' 就这样白测过很久）
+    // poison：故意把设置写坏的测试（看启动器扛不扛得住），不查
+    const bad = poison ? '' : badLook(cfg);
+    if (bad) return { ...ctx, startError: `测试的外观配置写错了：${bad}`, stop: async () => {} };
+    fs.writeFileSync(path.join(data, 'config.json'), JSON.stringify(cfg));
     fakeVersion(game, 'Plain');
     if (prepare) prepare(ctx);
   }
@@ -247,7 +272,7 @@ const SCENARIOS = {
     const failures = [];
     let cfgRun = 0;
     const tryConfig = async (label, patch) => {
-      const a = await start(`cfg-${cfgRun++}`, { config: (game) => ({ ...BASE_CONFIG(game), ...patch }) });
+      const a = await start(`cfg-${cfgRun++}`, { poison: true, config: (game) => ({ ...BASE_CONFIG(game), ...patch }) });
       if (a.startError) { await a.stop(); return { label, fail: [`起不来：${a.startError}`] }; }
       const blank = await visitAll(a);
       // 看结果：主页背景真的画出来了（有天空的配色、没有画画出错）。只看「有没有报错」不够：
@@ -357,6 +382,31 @@ const SCENARIOS = {
     await a.stop();
   },
 
+  /** 已经开着一个时再开一个（同一个数据文件夹）：第二个马上退出，不读写设置，第一个照常 */
+  async 'single-instance'() {
+    const a = await start('single-instance');
+    if (a.startError) { check('单实例', '第一个能打开', false, a.startError); return; }
+    await until(a.ev, '!!(window.A && A.state && A.state.config)', 20000);
+    const files = ['config.json', 'config.json.bak'].map((f) => path.join(a.data, f));
+    const snap = () => files.map((f) => (fs.existsSync(f) ? `${fs.statSync(f).mtimeMs}:${fs.readFileSync(f, 'utf8').length}` : '-'));
+    const before = snap();
+    const t0 = Date.now();
+    // 第二个不能放进沙盒：沙盒把退出拦下来了（为了记录），它就永远退不了。数据和游戏文件夹照样是测试的，
+    // safe-hook 拦住打开文件夹、网页、对话框
+    const b = track(spawn(ELECTRON, ['-r', path.join(__dirname, 'safe-hook.js'), '.'], {
+      cwd: process.env.AURORA_REGRESS_APP || REPO, stdio: 'ignore', windowsHide: true,
+      env: { ...process.env, AURORA_DATA_DIR: a.data, AURORA_GAME_DIR: a.game, AURORA_TEST_TRASH: path.join(a.root, 'trash'), ELECTRON_ENABLE_LOGGING: '' },
+    }));
+    const code = await waitExit(b, 20000);
+    const secs = (Date.now() - t0) / 1000;
+    check('单实例', `第二个很快自己退出了（${secs.toFixed(1)} 秒，退出码 ${code}）`, b.exitCode != null && secs < 15, { code: b.exitCode });
+    if (b.exitCode == null) { try { b.kill(); } catch { /* 已退出 */ } }
+    await sleep(800); // pitfall-ok：设置是攒一下再写的，第二个要是读了设置，过一会儿才会写盘
+    check('单实例', '第二个没有动设置文件（config.json 和它的备份都没被重写）', JSON.stringify(snap()) === JSON.stringify(before), { before, after: snap() });
+    check('单实例', '第一个还开着、能用', a.alive() && (await a.ev('1 + 1').catch(() => 0)) === 2);
+    await a.stop();
+  },
+
   /** 接口返回坏内容：不能崩，不能卡死，不能把内容当 HTML */
   async 'bad-net'() {
     const modes = ['html', 'error500', 'empty', 'nulljson', 'arrayjson', 'numberjson', 'truncated', 'wrongtypes', 'wrongitems', 'xss', 'huge', 'hang'];
@@ -400,7 +450,7 @@ function readDefaults() {
   return new Function('BRAND', `return (${m[1]});`)({});
 }
 
-module.exports = { start, visitAll, fakeVersion, BASE_CONFIG };
+module.exports = { start, visitAll, fakeVersion, BASE_CONFIG, lookShown, badLook };
 
 if (require.main === module) (async () => {
   const pick = process.argv[2] ? process.argv[2].split(',') : Object.keys(SCENARIOS);

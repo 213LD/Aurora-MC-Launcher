@@ -350,7 +350,7 @@
     if (v && v.loader && !n.autoDebug && !n.component) actions.push({ label: t('term.debug'), onClick: () => A.debugDialog(v) });
     if (n.component && n.component.ts) actions.push({ label: '撤销', onClick: () => A.components.undo(n.version, n.component.ts) });
     if (n.component) dropInstalled(n.version); // 又改了一次组件：旧提示上的「撤销」对应的不是最新一次了
-    const close = A.toast({ level: n.level || n.type, title: n.title, text: n.autoDebug && v ? `${n.version} 已安装，正在${t('term.debug')}` : n.text, actions });
+    const close = A.toast({ level: n.level || n.type, title: n.title, text: n.autoDebug && v ? `${A.nm(n.version)} 已安装，正在${t('term.debug')}` : n.text, actions });
     installedToasts.set(n.version, [...(installedToasts.get(n.version) || []), close]);
     if (n.autoDebug && v && v.loader) A.debugDialog(v, { auto: true });
     // 没有能运行它的 Java 时提醒一下，可以现在就下载

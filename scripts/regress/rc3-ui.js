@@ -10,7 +10,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { start, BASE_CONFIG, fakeVersion } = require('./robust-ui');
+const { start, BASE_CONFIG, fakeVersion, lookShown } = require('./robust-ui');
 const { sleep, guard, ready, until, WORLD_SEED } = require('./cdp');
 
 const BASE = require('./editions').BASE;
@@ -257,20 +257,34 @@ async function functional() {
 const LOOKS = [
   ['极光-深', {}], ['像素-深', { ui: { style: 'pixel' }, theme: 'dark' }], ['紧凑-深', { ui: { style: 'compact' }, theme: 'dark' }],
   ['极光-浅', { theme: 'light' }], ['像素-浅', { ui: { style: 'pixel' }, theme: 'light' }], ['紧凑-浅', { ui: { style: 'compact' }, theme: 'light' }],
-  ['极光-1.5倍', { a11y: { zoom: 1.5 } }], ['极光-高对比', { a11y: { contrast: 'high' } }], ['极光-英文', { language: 'en' }],
+  ['极光-1.5倍', { a11y: { zoom: 1.5 } }], ['极光-高对比', { a11y: { contrast: 'on' } }], ['极光-英文', { language: 'en' }],
+  ['极光-浅-高对比', { theme: 'light', a11y: { contrast: 'on' } }], ['像素-浅-高对比', { ui: { style: 'pixel' }, theme: 'light', a11y: { contrast: 'on' } }],
 ];
+// 高对比度下主页问候语看得清：字的颜色和它后面第一层不透明的底色比，对比度要到 7（WCAG AAA）。
+// 以前高对比度去掉了文字阴影，浅色时问候语是白字压在白色渐变上（往上找到的是白色的页面底色，对比度 1）
+const READABLE = `(() => { const rgb = (s) => (s.match(/[0-9.]+/g) || []).map(Number); const lum = (c) => { const [r, g, b] = c.slice(0, 3).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+  const bgOf = (el) => { for (let e = el; e; e = e.parentElement) { const c = rgb(getComputedStyle(e).backgroundColor); if (c.length >= 3 && (c[3] == null || c[3] >= 1)) return c; } return [255, 255, 255]; };
+  const low = []; for (const sel of ['.greet h1', '.greet h1 span', '.greet p']) for (const el of document.querySelectorAll(sel)) { if (!el.textContent.trim()) continue; const fg = rgb(getComputedStyle(el).color); const a = lum(fg); const b = lum(bgOf(el)); const ratio = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05); if ((fg[3] != null && fg[3] < 1) || ratio < 7) low.push(sel + ' ' + getComputedStyle(el).color + ' 对比度 ' + ratio.toFixed(1)); }
+  const music = document.getElementById('btnMusic'); const brand = document.querySelector('.brand-name span');
+  const pixel = document.documentElement.dataset.style === 'pixel';
+  return { low, music: !pixel || !music || !brand || getComputedStyle(music).color === getComputedStyle(brand).color, musicColor: music && getComputedStyle(music).color }; })()`;
 async function looks() {
   let n = 0;
   for (const [name, cfg] of LOOKS) {
     const a = await start(`rc3-look-${n++}`, { prepare, config: (game) => ({ ...BASE_CONFIG(game), selectedVersion: 'Fab', background: BG, ...cfg }) });
     if (a.startError) { check('外观', `${name}：能打开`, false, a.startError); continue; }
     await ready(a.ev);
+    { const lk = await lookShown(a, cfg); check('外观', `${name}：外观真的换上了`, !lk, lk); }
     const o = await a.ev(`(async () => { ${clean} A.state.javas = []; A.emit('javas', []); await A.go('home'); const s = A.homeScene(); if (s) { s.setWeather('rain'); } await new Promise((r) => setTimeout(r, 2500));
       const d = document.querySelector('.dock'); const over = [...d.querySelectorAll('.dock-pick, .dock-tool, .launch-btn')].filter((x) => x.getBoundingClientRect().right > d.getBoundingClientRect().right + 1).length;
       const iso = d.querySelector('.d-iso svg'); const sound = document.getElementById('btnSound'); const sr = sound.getBoundingClientRect();
       return { fit: d.dataset.fit, over, iso: iso ? Math.round(iso.getBoundingClientRect().width) : null, sound: sr.width > 0 && sr.height > 0, java: !!document.querySelector('.java-missing') }; })()`, 20000);
     await shot(a, `${name}-主页`);
     check('外观', `${name}：启动栏不超出、盾牌图标不缩小、音效开关和红色 Java 按钮都在`, o.over === 0 && (o.iso == null || o.iso >= 12) && o.sound && o.java, o);
+    if (cfg.a11y && cfg.a11y.contrast === 'on') {
+      const r = await a.ev(READABLE);
+      check('外观', `${name}：主页的问候语看得清（对比度到 7）；像素风格顶栏上静音的音乐按钮和别的字一样是白的`, r.low.length === 0 && r.music, r);
+    }
     await a.ev(`(async () => { await A.api('planner:save', { name: 'Demo', mc: '1.20.1', loader: 'fabric', styles: [], items: [{ projectId: 'x', title: 'Sodium', selected: true }], step: 2 }); await A.go('tasks'); await new Promise((r) => setTimeout(r, 900)); })()`);
     await shot(a, `${name}-任务中心`);
     await a.ev("(async () => { await A.go('settings'); await new Promise((r) => setTimeout(r, 600)); })()");

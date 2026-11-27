@@ -138,12 +138,20 @@ async function installFabricLike(kind, mc, loader, name, task) {
   await versions.completeVersion(name, task);
 }
 
-/** 运行一个 Java 进程并把输出转为任务详情 */
-function runJava(javaPath, args, cwd, task) {
+// 安装器一直不出声多久算卡死：Forge 的安装器下载库、跑处理器时一直在打印，十五分钟一行都没有就是卡住了
+const JAVA_IDLE_MS = 15 * 60000;
+
+/** 运行一个 Java 进程并把输出转为任务详情。opts.idleMs：多久没有输出就当卡死，结束它 */
+function runJava(javaPath, args, cwd, task, { idleMs = JAVA_IDLE_MS } = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(javaPath, args, { cwd, windowsHide: true });
     const tail = [];
+    let idle = null;
+    let stalled = false;
+    const kick = () => { clearTimeout(idle); idle = setTimeout(() => { stalled = true; try { child.kill(); } catch { /* 已退出 */ } }, idleMs); };
+    kick();
     const onData = (text) => {
+      kick();
       for (const line of text.split(/\r?\n/)) {
         const t = line.trim();
         if (!t) continue;
@@ -160,10 +168,12 @@ function runJava(javaPath, args, cwd, task) {
     }
     const onAbort = () => { try { child.kill(); } catch { /* ignore */ } };
     task.signal.addEventListener('abort', onAbort, { once: true });
-    child.on('error', (e) => reject(new Error(`无法启动安装器：${e.message}`)));
+    const done = () => { clearTimeout(idle); task.signal.removeEventListener('abort', onAbort); };
+    child.on('error', (e) => { done(); reject(new Error(`无法启动安装器：${e.message}`)); });
     child.on('close', (code) => {
-      task.signal.removeEventListener('abort', onAbort);
+      done();
       if (task.signal.aborted) return reject(abortError());
+      if (stalled) return reject(new Error(`安装器 ${Math.round(idleMs / 60000)} 分钟没有任何动静，像是卡住了，已经结束它。可以再装一次；还不行的话看看网络或换个下载源`));
       if (code === 0) resolve(tail);
       else {
         const hint = tail.slice(-6).join('\n');
@@ -240,7 +250,8 @@ async function installWithInstaller(installer, mc, name, task, label) {
   const sameName = createdId.toLowerCase() === name.toLowerCase();
   // 安装器会覆盖同名版本：若用户已有同名版本，先临时移开
   const createdDir = versions.versionDir(createdId);
-  const backup = `${createdDir}.aurora-bak`;
+  // 名字带上时间：上次崩溃留下的 .aurora-bak 还在时，改名不会撞上它而失败（两个安装同时跑也不撞）
+  const backup = `${createdDir}.aurora-bak-${Date.now()}`;
   const hadExisting = !sameName && (await exists(createdDir));
   if (hadExisting) await renameRetry(createdDir, backup);
 

@@ -14,10 +14,21 @@ const PRESETS = [{ id: 'littleskin', name: 'LittleSkin', url: 'https://littleski
 const trimSlash = (u) => String(u || '').trim().replace(/\/+$/, '');
 
 /** 玩家填的地址 → API 根地址 + 元数据（服务器名、皮肤域名、公钥），元数据原文用来给 authlib-injector 预取 */
+// 不加密的 http：登录时密码会明文传过去。只认本机和局域网里的（自己搭的测试服务器），外面的要 https
+function assertSafeRoot(url) {
+  let u;
+  try { u = new URL(url); } catch { throw new Error('认证服务器地址格式不对'); }
+  if (u.protocol === 'https:') return;
+  const h = u.hostname.replace(/^\[|\]$/g, '');
+  const local = /^(localhost|127\.\d+\.\d+\.\d+|::1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)$/i.test(h) || /\.local$/i.test(h);
+  if (u.protocol !== 'http:' || !local) throw new Error('这个认证服务器用的是不加密的 http，登录时密码会明文传出去。请换成 https 开头的地址（本机、局域网里的服务器可以用 http）');
+}
+
 async function resolve(input) {
   let url = trimSlash(input);
   if (!url) throw new Error('请填写认证服务器地址');
   if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+  assertSafeRoot(url);
   let root = url;
   let text = '';
   for (let hop = 0; hop < 2; hop++) {
@@ -26,6 +37,7 @@ async function resolve(input) {
       const ali = res.headers.get('x-authlib-injector-api-location');
       if (ali && hop === 0) {
         const next = trimSlash(new URL(ali, root).href);
+        assertSafeRoot(next); // 服务器指过去的真正地址也要查：不能从 https 被带到明文的 http
         if (next !== root) { root = next; continue; }
       }
       text = await res.text();

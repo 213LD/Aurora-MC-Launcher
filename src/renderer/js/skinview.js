@@ -16,7 +16,7 @@
     lleg: { base: [16, 48, 4, 12, 4], over: [0, 48, 4, 12, 4], pivot: [2, 20, 0], inflate: 0.25 },
   };
 
-  const fixUrl = (u) => (typeof u === 'string' ? u.replace(/^http:\/\/(?!127\.0\.0\.1(?::|\/|$)|localhost(?::|\/|$))/i, 'https://') : u);
+  const fixUrl = window.WEBURL.toHttps;
   const cssUrl = (u) => String(u || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 
   /** 一个长方体：中心在 (0,0,0)，dims 是像素尺寸（可以带 inflate），uv 取贴图 */

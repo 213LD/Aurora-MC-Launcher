@@ -111,7 +111,8 @@ async function recover(p, label) {
   try { await renameRetry(p, keptAs); } catch (e) { notice('busy', label, p); return { status: 'busy', error: e }; }
   const bak = await readRaw(bakOf(p));
   if (bak.status === 'ok') {
-    await writeJson(p, bak.data);
+    // 和 recoverSync 一样：写回失败不要紧，内容已经拿到了，下一次保存会写出去
+    await writeJson(p, bak.data).catch((e) => console.warn('[jsonstore] 恢复时写回失败', e.message));
     notice('recovered', label, p, keptAs);
     return { status: 'recovered', data: bak.data, keptAs };
   }

@@ -260,6 +260,12 @@
     if (e.key === 'Escape') closeTopModal();
     // Alt+←：返回上一个页面（app.js）
     if (e.key === 'ArrowLeft' && e.altKey && A.hooks.goBack) { e.preventDefault(); A.hooks.goBack(); }
+    // 键盘：焦点在当按钮 / 链接用的 div、没有 href 的 a 上，回车（按钮还有空格）就是点它（原生的 button、input 浏览器自己会处理；自己处理了按键的元素会 preventDefault，这里不再点一次）
+    const el = e.target;
+    if (!e.defaultPrevented && (e.key === 'Enter' || e.key === ' ') && el && el.getAttribute && el.getAttribute('tabindex') === '0' && !/^(BUTTON|INPUT|TEXTAREA|SELECT|SUMMARY)$/.test(el.tagName) && !(el.tagName === 'A' && el.hasAttribute('href'))) {
+      const role = el.getAttribute('role');
+      if (role === 'button' || (role === 'link' && e.key === 'Enter')) { e.preventDefault(); el.click(); }
+    }
   });
   // 鼠标侧键「后退」
   window.addEventListener('mouseup', (e) => { if (e.button === 3 && A.hooks.goBack) { e.preventDefault(); A.hooks.goBack(); } });
@@ -337,7 +343,8 @@
           { label: t('common.cancel'), kind: 'ghost' },
           { label: okText, kind: 'solid-danger', ref: (b) => { okBtn = b; }, onClick: () => { if (!can()) return false; result = keep; return true; } },
         ]);
-        const timer = setInterval(() => { left--; refresh(); if (left <= 0) clearInterval(timer); }, 1000);
+        // 倒计时没完就关了对话框：停掉，不再去改已经不在页面上的按钮
+        const timer = setInterval(() => { left--; refresh(); if (left <= 0 || !m.el.isConnected) clearInterval(timer); }, 1000);
         refresh();
         // 焦点放在「取消」上：倒计时结束时手还按着回车也不会直接确认
         setTimeout(() => { const c = m.el.querySelector('.modal-foot .btn.ghost'); if (c) c.focus(); }, 60);
@@ -577,25 +584,41 @@
   });
   document.addEventListener('mousedown', () => { clearTimeout(tipTimer); if (tipEl) { tipEl.remove(); tipEl = null; } });
 
-  async function copy(text) {
+  /** 复制到剪贴板，返回有没有复制成。quiet：不弹提示（调用方自己说） */
+  async function copy(text, { quiet = false } = {}) {
     text = String(text).replace(/[\u2068\u2069]/g, ''); // 名字的翻译标记不带进剪贴板
-    try { await navigator.clipboard.writeText(text); } catch {
+    let ok = false;
+    try { await navigator.clipboard.writeText(text); ok = true; } catch {
       const ta = h('textarea', { style: { position: 'fixed', opacity: 0 } }, text);
-      document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+      document.body.appendChild(ta); ta.select();
+      try { ok = document.execCommand('copy'); } catch { ok = false; }
+      ta.remove();
     }
-    toast({ level: 'ok', text: '已复制到剪贴板', duration: 1800 });
+    if (!quiet) toast(ok ? { level: 'ok', text: '已复制到剪贴板', duration: 1800 } : { level: 'warn', text: '没能复制到剪贴板，请手动选中复制', duration: 4000 });
+    return ok;
   }
 
   function drawer({ title, subtitle, img, body, width, onClose }) {
+    const opener = document.activeElement;
     const back = h('div.drawer-back');
-    const panel = h('div.drawer', { style: width ? { width: `${width}px` } : null },
+    const panel = h('div.drawer', { role: 'dialog', 'aria-modal': 'true', 'aria-label': typeof title === 'string' ? title : null, tabindex: '-1', style: width ? { width: `${width}px` } : null },
       h('div.drawer-head', img ? h('img', { src: img }) : null,
         h('div', { style: { flex: 1, minWidth: 0 } }, h('h2.ellipsis', title), subtitle ? h('div.muted', { style: { fontSize: '12.5px' } }, subtitle) : null),
         h('button.btn.ghost.icon.sm', { onclick: () => close() }, icon('x', 18))),
       h('div.drawer-body', body));
     back.appendChild(panel);
     back.addEventListener('mousedown', (e) => { if (e.target === back) close(); });
+    // 和对话框一样：焦点留在抽屉里（Tab 到最后一个回到第一个），关上以后回到打开它的控件
+    panel.addEventListener('keydown', (e) => {
+      if (e.key !== 'Tab') return;
+      const list = [...panel.querySelectorAll(FOCUSABLE)].filter((el) => el.offsetParent !== null);
+      if (!list.length) return;
+      const first = list[0];
+      const last = list[list.length - 1];
+      if (e.shiftKey && (document.activeElement === first || document.activeElement === panel)) { e.preventDefault(); last.focus(); } else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
     document.body.appendChild(back);
+    setTimeout(() => { if (!panel.contains(document.activeElement)) panel.focus({ preventScroll: true }); }, 0);
     let closed = false;
     function close() {
       if (closed) return;
@@ -604,6 +627,7 @@
       setTimeout(() => back.remove(), 200);
       const i = modalStack.indexOf(apiObj);
       if (i >= 0) modalStack.splice(i, 1);
+      if (opener && opener.isConnected && typeof opener.focus === 'function') opener.focus();
       if (onClose) onClose();
       A.emit('modalClosed', modalStack.length);
     }
@@ -629,17 +653,19 @@
     const walk = (node) => {
       for (const child of [...node.children]) {
         if (!SAFE_TAGS.has(child.tagName)) {
-          if (['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'EMBED', 'FORM', 'INPUT', 'BUTTON', 'LINK', 'META'].includes(child.tagName)) { child.remove(); continue; }
+          // SVG 里的元素名是小写的（svg 里的 script、style）：比的时候不分大小写，整个去掉，不留下里面的代码当文字
+          if (['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'EMBED', 'FORM', 'INPUT', 'BUTTON', 'LINK', 'META', 'TEMPLATE', 'NOSCRIPT'].includes(child.tagName.toUpperCase())) { child.remove(); continue; }
           walk(child);
           child.replaceWith(...child.childNodes);
           continue;
         }
         for (const attr of [...child.attributes]) {
           const n = attr.name.toLowerCase();
-          const keep = (child.tagName === 'A' && n === 'href' && /^https?:/i.test(attr.value)) || (child.tagName === 'IMG' && n === 'src' && /^https:/i.test(attr.value)) || n === 'colspan';
+          // 图片的 alt 留着：读屏软件念的就是它
+          const keep = (child.tagName === 'A' && n === 'href' && /^https?:/i.test(attr.value)) || (child.tagName === 'IMG' && (n === 'alt' || (n === 'src' && /^https:/i.test(attr.value)))) || n === 'colspan';
           if (!keep) child.removeAttribute(attr.name);
         }
-        if (child.tagName === 'A') child.setAttribute('target', '_blank');
+        if (child.tagName === 'A') { child.setAttribute('target', '_blank'); child.setAttribute('rel', 'noopener noreferrer'); }
         walk(child);
       }
     };

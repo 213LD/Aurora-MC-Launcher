@@ -91,13 +91,16 @@ async function setModInfo(id, entries) {
   });
 }
 
-/** 把版本标记为一个独立的游戏配置（强制版本隔离） */
-async function markProfile(id, type, extra = {}) {
+/**
+ * 把版本标记为一个独立的游戏配置（强制版本隔离）。
+ * opts.defaultShared：false 时先不按「新配置默认共享存档」去联接公共文件夹（整合包要先把自带的东西解压进自己的文件夹，装完再定，见 modpack.js）
+ */
+async function markProfile(id, type, extra = {}, { defaultShared = true } = {}) {
   config.setVersionSettings(id, { isolation: 'on' });
   const before = await readMeta(id);
   let meta = await writeMeta(id, { type, ...extra });
   // 首次启动时选了「共享存档」：新建的配置默认与公共 .minecraft 共享存档（创建时另选了方式的会随后覆盖）
-  if (!before.isolation && config.get().newProfileIsolation === 'shared') {
+  if (defaultShared && !before.isolation && config.get().newProfileIsolation === 'shared') {
     await require('./isolation').setPolicy(id, { preset: 'shared', source: '@root' }).catch((e) => console.warn('[profiles] 默认共享存档失败', e.message));
     meta = await readMeta(id);
   }

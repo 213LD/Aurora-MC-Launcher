@@ -17,7 +17,7 @@ let cache = null;
 
 function ps(command) {
   return new Promise((resolve) => {
-    execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', PS_UTF8 + command], { timeout: 15000, windowsHide: true, encoding: 'utf8' }, (err, out) => {
+    execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', PS_UTF8 + command], { timeout: 15000, windowsHide: true, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 }, (err, out) => { // 默认 1 MB：驱动、显示器多的电脑上输出会超，结果整个丢掉
       if (err) return resolve(null);
       try { resolve(JSON.parse(out)); } catch { resolve(null); }
     });

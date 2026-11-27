@@ -61,7 +61,8 @@
     const b = document.getElementById('btnLang');
     lastKey = null;
     if (!b) return;
-    b.addEventListener('click', () => { if (busy()) { renderBtn(); return; } A.menu(b, items(), { align: 'right' }); });
+    // 有任务在跑时点了：说一声为什么不能换（以前什么都不发生，像是按钮坏了）
+    b.addEventListener('click', () => { if (busy()) { renderBtn(); A.toast({ level: 'info', text: '有任务正在进行，等完成后再切换语言', duration: 3000 }); return; } A.menu(b, items(), { align: 'right' }); });
     A.on('task', renderBtn);
     renderBtn();
   }

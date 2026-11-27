@@ -102,7 +102,7 @@ a:hover { text-decoration: underline; }
 
 /* 键盘焦点：只在用键盘操作时显示焦点环 */
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.input:focus-visible, .textarea:focus-visible, .modal:focus-visible, .modal:focus { outline: none; }
+.input:focus-visible, .textarea:focus-visible, .modal:focus-visible, .modal:focus, .drawer:focus-visible, .drawer:focus { outline: none; }
 
 /* 等级颜色：组件里用 var(--lv) 取当前等级的颜色 */
 .info { --lv: var(--info); }
@@ -2033,6 +2033,14 @@ html.hc :focus-visible { outline: 3px solid var(--text) !important; outline-offs
 html.hc .stat-pill { background: var(--bg) !important; border-color: var(--border-2) !important; color: var(--text) !important; }
 html.hc .stat-pill.java-missing { border: 2px solid var(--danger) !important; }
 html.hc .titlebar.tb-solid { background: var(--bg) !important; border-bottom-color: var(--border-2) !important; }
+/* 主页的问候语压在场景上：高对比度下去掉了文字阴影，浅色时顶上的渐变又是白的，白字就看不见了。垫一块实色底板，字用正文颜色 */
+html.hc:root .greet { background: var(--bg); border: 2px solid var(--border-2); border-radius: 10px; padding: 12px 16px; }
+html.hc:root .greet h1, html.hc:root .greet p, html.hc:root .tip-hot { color: var(--text); }
+html.hc:root .greet h1 span { background: none; -webkit-background-clip: border-box; background-clip: border-box; color: var(--text); filter: none; text-decoration: underline; text-decoration-thickness: 3px; text-underline-offset: 6px; }
+html.hc:root .tip-hot svg { color: var(--text); filter: none; }
+/* 像素风格的顶栏是深色石头、上面的字是白的：高对比度下不能换成浅色底，静音时的音乐按钮也不能变成深灰字 */
+html.hc:root[data-style="pixel"] .titlebar.tb-solid { background: none !important; }
+html.hc:root[data-style="pixel"] #btnMusic, html.hc:root[data-style="pixel"] #btnMusic.muted { color: #fff !important; }
 @media (forced-colors: active) {
   .menu-item:focus-visible, .btn:focus-visible { outline: 3px solid CanvasText; }
   .badge, .alert, .toast { border: 1px solid CanvasText; }

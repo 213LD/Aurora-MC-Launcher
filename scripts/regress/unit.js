@@ -263,6 +263,17 @@ app.whenReady().then(async () => {
   walkSrc(path.join(H.REPO, 'src', 'main'));
   check('结构化消息', '主进程用到的每个消息模板英文字典里都有', missing.length === 0, missing.slice(0, 6));
   i18n.setLang(was);
+  // 自动进服务器：地址拆成主机和端口（IPv6 带方括号；以前按冒号一拆，[::1]:25565 就拆坏了）
+  table('服务器地址', '自动进服务器的地址拆成主机和端口', (a) => core('launcher').hostPort(a), [
+    ['mc.example.com', { host: 'mc.example.com', port: '' }], ['mc.example.com:25566', { host: 'mc.example.com', port: '25566' }],
+    ['[::1]:25565', { host: '::1', port: '25565' }], ['[2001:db8::5]', { host: '2001:db8::5', port: '' }], ['2001:db8::5', { host: '2001:db8::5', port: '' }],
+  ]);
+  // 隐私说明和免责声明两个版本共用：公开版没有 MC 百科，所以这两处不能点名它（中英文要说同一件事）
+  const privacy = require(path.join(H.REPO, 'src', 'shared', 'brand')).privacy.join('\n');
+  const disc = require(path.join(H.REPO, 'src', 'main', 'disclaimer')).text();
+  check('隐私说明', '隐私说明和免责声明不点名只有内部版才有的 MC 百科', !/MC ?百科|mcmod/i.test(privacy + disc), (privacy + disc).match(/.{0,30}(MC ?百科|mcmod).{0,30}/i));
+  const enMiss = require(path.join(H.REPO, 'src', 'shared', 'brand')).privacy.filter((s) => !dict[s]);
+  check('隐私说明', '隐私说明每一句都有英文', enMiss.length === 0, enMiss);
   finish();
 });
 app.on('window-all-closed', () => {});

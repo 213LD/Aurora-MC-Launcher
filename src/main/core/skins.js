@@ -13,6 +13,7 @@ const paths = require('../engine/paths');
 const net = require('../engine/net');
 const { exists } = require('../engine/util');
 const { cutChars } = require('../../shared/pathrules');
+const { toHttps } = require('../../shared/weburl');
 const jsonStore = require('../engine/jsonstore');
 const { nm } = require('../../shared/i18n');
 
@@ -23,7 +24,7 @@ const safe = (id) => String(id).replace(/[^\w.-]/g, '_');
 const accDir = (id) => path.join(root(), safe(id));
 const libDir = () => path.join(root(), 'library');
 const sha256 = (buf) => crypto.createHash('sha256').update(buf).digest('hex');
-const httpsTexUrl = (u) => (typeof u === 'string' ? u.replace(/^http:\/\/(?!127\.0\.0\.1(?::|\/|$)|localhost(?::|\/|$))/i, 'https://') : '');
+const httpsTexUrl = (u) => (typeof u === 'string' ? toHttps(u) : '');
 
 /** PNG 的宽高；不是 PNG 返回 null */
 function pngSize(buf) {
@@ -243,8 +244,8 @@ async function fromUrl(url) {
   let u;
   try { u = new URL(String(url).trim()); } catch { throw new Error('网址格式不正确'); }
   if (!/^https?:$/.test(u.protocol)) throw new Error('只支持 http / https 网址');
-  const buf = await net.getBuffer(u.href, { retries: 1, timeout: 20000 });
-  if (buf.length > 2 * 1024 * 1024) throw new Error('图片太大了');
+  // 边下边数：超过 2 MB 就停（皮肤图片不过几 KB；不能把一个几 GB 的「图片」整个读进内存再看大小）
+  const buf = await net.getBuffer(u.href, { retries: 1, timeout: 20000, maxBytes: 2 * 1024 * 1024 }).catch((e) => { throw e.tooBig ? new Error('图片太大了') : e; });
   if (!pngSize(buf)) throw new Error('这个网址不是 PNG 图片');
   return { name: path.basename(u.pathname).replace(/\.png$/i, '') || 'skin', skin: buf.toString('base64'), model: null, cape: null };
 }
@@ -325,12 +326,14 @@ async function libraryAdd({ png, model, name, group, keep }) {
   const p = path.join(libDir(), `${hash}.png`);
   if (!(await exists(p))) await fsp.writeFile(p, buf);
   await jsonStore.update(libIndex(), (idx) => {
-    const old = (idx.items || []).find((x) => x.hash === hash);
+    const at = (idx.items || []).findIndex((x) => x.hash === hash);
+    const old = at >= 0 ? idx.items[at] : null;
     idx.items = (idx.items || []).filter((x) => x.hash !== hash);
     const item = keep && old ? old : { hash, model: model === 'slim' ? 'slim' : 'classic', name: cleanName(name) || '皮肤', addedAt: Date.now() };
     if (group !== undefined && !(keep && old && old.group)) item.group = cleanName(group) || undefined;
     if (item.group) idx.groups = [...new Set([...(idx.groups || []), item.group])];
-    idx.items.unshift(item);
+    // keep（同步正版皮肤）：已经在库里的留在原来的位置，不每同步一次就挪到最前面
+    if (keep && old) idx.items.splice(at, 0, item); else idx.items.unshift(item);
     return idx;
   }, LIB);
   return library();

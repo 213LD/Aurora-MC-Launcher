@@ -53,6 +53,8 @@ Pick a game version, a loader and what you want to play (performance, shaders, t
 - One-click Debug reads the loader's errors, installs missing dependencies and turns off conflicting mods. If that isn't enough, it bisects: it switches half of the mods off at a time until it finds the one causing the problem. Every step can be undone
 - After a crash, the launcher tells you the likely cause and what to do about it
 
+![One-click Repair](docs/images/en-repair.png)
+
 ### Three interface styles
 
 The default "Aurora" style, a pixel style in the spirit of the game, and a compact style, each with dark and light themes. Accessibility settings include interface zoom, large text, high contrast, reduced motion, no flashing and colour-vision aids.
@@ -64,7 +66,7 @@ The default "Aurora" style, a pixel style in the spirit of the game, and a compa
 ### And more
 
 - **Move in from other launchers**: import profiles and saves from the official launcher, HMCL, PCL2 and MultiMC / Prism Launcher; the original files are never changed
-- **Accounts**: Microsoft login (device code flow), third-party login (LittleSkin and others), and offline accounts. Offline accounts can use your own skin through the launcher's built-in local skin server
+- **Accounts**: Microsoft sign-in (device code flow, through the launcher's built-in Azure app approved by Microsoft), third-party sign-in (LittleSkin and others), and offline accounts. Offline accounts can use your own skin through the launcher's built-in local skin server
 - **Skin Center**: collect, group and preview skins in 3D, and assign them to offline accounts
 - **Log Center**: watch the game log live, filter by level, search and export; the log of every session is kept
 - **Your data, your choice of location**: the system default, portable mode (everything lives in a folder next to the exe, so you can copy the whole folder elsewhere), or a folder you pick
@@ -74,13 +76,13 @@ The default "Aurora" style, a pixel style in the spirit of the game, and a compa
 
 - The launcher collects no data: no analytics, no telemetry, nothing about you is uploaded, and it has no server of its own.
 - The launcher doesn't check for updates. Download new versions from this repository's Releases.
-- It only goes online when you use a feature that needs it, and then talks directly to that service: downloading (and searching) the game, mods, resource packs, shaders and Java; Microsoft and third-party login; Minecraft news on the home screen; importing a skin by player name, from LittleSkin or from a URL.
+- It only goes online when you use a feature that needs it, and then talks directly to that service: downloading (and searching) the game, mods, resource packs, shaders and Java; Microsoft and third-party sign-in; Minecraft news on the home screen; importing a skin by player name, from LittleSkin or from a URL.
 - Everything else works without a network. When the network is gone, the launcher switches to offline mode and disables the features that need it.
 
 ## Notes
 
 - Windows only.
-- Online features (downloading games/mods, Microsoft login, and third-party login) are disabled in offline mode.
+- Online features (downloading games/mods, Microsoft sign-in, and third-party sign-in) are disabled in offline mode.
 
 ## Running from source
 
@@ -137,11 +139,11 @@ The logo is a glass block holding an aurora night sky with an oak tree growing i
 
 The code, the interface and the background music were written by an AI (Claude). The requirements, the design decisions and round after round of hands-on testing were done by the author, 213LD.
 
-This repository is exported from the author's private development repository, so its commit history starts at the public release. Version numbers in code comments (such as `1.10.7` or `2.0.0-rc9`) are internal version numbers from before the public release; public versions start again from 1.0.0.
+This repository is exported from the author's private development repository, so its commit history starts at the public release. Version numbers in code comments (such as `1.10.7` or `2.0.0-rc9`) are internal version numbers from before the public release; public versions start again from 1.0.0 (the first Release in this repository is 1.1.1).
 
 ## Credits
 
-[ACKNOWLEDGEMENTS.md](ACKNOWLEDGEMENTS.md) (the same list as "Settings → About → References & Acknowledgements" in the launcher) states, feature by feature, how this launcher relates to similar features in other launchers: an implementation approach we referred to, an idea that inspired us, or an independent implementation of a similar feature. **Referring to something is not copying it**: no code or data from HMCL, PCL2 or other launchers was copied, and the Chinese mod-name table was compiled for this project. The online services we use (Mojang, BMCLAPI, Modrinth, CurseForge and others) and the third-party works with their licenses are listed there too.
+[ACKNOWLEDGEMENTS.md](ACKNOWLEDGEMENTS.md) (in Chinese; the same list as "Settings → About → References & Acknowledgements" in the launcher) states, feature by feature, how this launcher relates to similar features in other launchers: an implementation approach we referred to, an idea that inspired us, or an independent implementation of a similar feature. **Referring to something is not copying it**: no code or data from HMCL, PCL2 or other launchers was copied, and the Chinese mod-name table was compiled for this project. The online services we use (Mojang, BMCLAPI, Modrinth, CurseForge and others) and the third-party works with their licenses are listed there too.
 
 ## Issues and feedback
 

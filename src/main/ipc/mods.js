@@ -17,7 +17,8 @@ function register() {
   // 不带配置 id 发 mods:changed：Mod 管理页是自己调用的，已经会刷新；这里只是让配置卡片上的数字跟着变（1.10.8）
   handle('mods:toggle', async (p, enable) => { assertInGame(p); await gamelock.assertPath(p, '开关 Mod'); const r = await mods.toggleMod(p, enable); send('mods:changed', null); return r; });
   handle('mods:remove', async (p, id, opts = {}) => { assertInGame(p); await gamelock.assertPath(p, '删除 Mod'); const r = await mods.removeMod(p, id, { permanent: !!opts.permanent }); send('mods:changed', null); return r; });
-  handle('mods:add', async (id, files, kind) => { const r = await mods.addFiles(id, Array.isArray(files) ? files : [], kind); send('mods:changed', null); return r; });
+  // 往 mods 文件夹里加：和开关、删除一样，游戏开着时不改（资源包、光影不影响正在运行的游戏，照常加）
+  handle('mods:add', async (id, files, kind) => { if (!kind || kind === 'mod') await assertModsFree(id, '添加 Mod'); const r = await mods.addFiles(id, Array.isArray(files) ? files : [], kind); send('mods:changed', null); return r; });
   handle('mods:search', (params) => mods.search(params || {}));
   // 光影「适合这台电脑」（1.5.9）
   handle('mods:shaderMachine', () => require('../core/shaderfit').machine());
@@ -60,7 +61,7 @@ function register() {
   handle('curseforge:manualList', async (id) => (await profiles.readMeta(id)).cfManual || []);
   handle('mods:identify', (id) => mods.identify(id));
   handle('mods:checkUpdates', (id) => mods.checkUpdates(id));
-  handle('mods:update', (id, items) => startTask(`更新 ${items.length} 个 Mod`, { kind: 'mod', lock: id, meta: { name: id }, doneText: '更新完成', failTitle: '更新失败' }, async (task) => {
+  handle('mods:update', async (id, items) => { await assertModsFree(id, '更新 Mod'); return startTask(`更新 ${items.length} 个 Mod`, { kind: 'mod', lock: id, meta: { name: id }, doneText: '更新完成', failTitle: '更新失败' }, async (task) => {
     const b = await backup.auto(id, 'modupdate', task);
     if (b.error) send('notify', { level: 'warn', title: '更新前备份 Mod 失败', text: `${b.error}。继续更新` });
     let n = 0;
@@ -73,7 +74,7 @@ function register() {
   }, (err, n) => {
     send('mods:changed', id);
     if (!err) send('notify', { level: 'ok', title: '更新完成', text: `已更新 ${n} 个 Mod` });
-  }));
+  }); }); // 更新会换掉 mods 里的文件：和开关、删除一样，游戏开着时不动
   handle('mods:presetSave', (id, name) => mods.savePreset(id, name));
   handle('mods:presetApply', async (id, name) => { await assertModsFree(id, '切换 Mod 方案'); const r = await mods.applyPreset(id, name); send('mods:changed', id); return r; });
   handle('mods:presetDelete', (id, name) => mods.deletePreset(id, name));

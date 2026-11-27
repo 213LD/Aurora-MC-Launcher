@@ -119,11 +119,13 @@ async function installPack(file, pack, name, opts, task) {
     opts.installingMarker = marker;
     installingHere.add(name);
     await loaders.install({ mc: pack.mc, name, loader }, task);
+    // 先不联接公共文件夹：玩家选了「新配置默认共享存档」时，存档、资源包这些会联到公共 .minecraft，
+    // 整合包自带的世界、资源包解压进去就写进了玩家自己的公共存档（同名的世界会被盖掉）。装完再按整合包带了什么来定
     await profiles.markProfile(name, 'modpack', {
       name: pack.name,
       description: pack.summary,
       modpack: { name: pack.name, version: pack.version, ...(opts.source || {}) },
-    });
+    }, { defaultShared: false });
     const info = await versions.versionInfo(name);
     const gameDir = versions.gameDirFor(name, info);
     if (pack.format === 'curseforge') {
@@ -135,6 +137,7 @@ async function installPack(file, pack, name, opts, task) {
         map: (e) => e.name.slice(pack.overridePrefix.length),
       }));
       if (Object.keys(r.entries).length) await profiles.setModInfo(name, r.entries);
+      await defaultIsolation(name, file, [pack.overridePrefix]);
       // 作者关闭了第三方下载的文件：之后由玩家在浏览器里下载，启动器自动导入
       if (r.manual.length) await profiles.writeMeta(name, { cfManual: r.manual });
       if (opts.onManual) opts.onManual(r.manual, r.missing);
@@ -178,6 +181,7 @@ async function installPack(file, pack, name, opts, task) {
       }
     } catch { /* 仅用于显示 */ }
     if (Object.keys(entries).length) await profiles.setModInfo(name, entries);
+    await defaultIsolation(name, file, ['overrides/', 'client-overrides/'], pack.files);
     if (pack.aurora) await applyAuroraProfile(name, pack.aurora);
   } catch (e) {
     // 取消或失败都不留半个配置（以前只有取消才清）：名字是 uniqueName 新取的，文件夹里没有玩家的东西
@@ -187,8 +191,32 @@ async function installPack(file, pack, name, opts, task) {
   return name;
 }
 
-/** 清掉这次新建的整合包配置。不进回收站：里面只有下载了一半的文件 */
+/**
+ * 装完以后再按「新配置默认共享存档」联接公共文件夹：整合包自己带了的（自带的世界、资源包、光影、截图、options.txt）留在配置自己的文件夹里，
+ * 没带的才和公共 .minecraft 共享。没选默认共享就什么都不做（保持独立）
+ */
+async function defaultIsolation(id, file, prefixes, files = []) {
+  if (require('../engine/config').get().newProfileIsolation !== 'shared') return;
+  const isolation = require('./isolation');
+  const touched = new Set();
+  const top = (rel) => { const seg = rel.split(/[\\/]/)[0]; return seg === 'options.txt' ? 'options' : seg; };
+  await withZip(file, (z) => {
+    for (const e of z.entries) for (const p of prefixes) if (p && e.name.startsWith(p) && e.name.length > p.length) touched.add(top(e.name.slice(p.length)));
+  });
+  for (const f of files) if (f && f.path) touched.add(top(f.path));
+  const items = { ...isolation.PRESETS.shared };
+  for (const k of Object.keys(items)) if (touched.has(k)) items[k] = 'own';
+  const same = Object.keys(items).every((k) => items[k] === isolation.PRESETS.shared[k]);
+  await isolation.setPolicy(id, same ? { preset: 'shared', source: '@root' } : { preset: 'custom', source: '@root', items })
+    .catch((e) => console.warn('[modpack] 默认共享存档失败', e.message));
+}
+
+/** 清掉这次新建的整合包配置。不进回收站：里面只有下载了一半的文件。先拆掉联到公共文件夹的联接，删的时候绝不碰到公共存档 */
 async function discard(id) {
+  try {
+    const info = await versions.versionInfo(id);
+    if (info) await require('./isolation').detachAll(versions.gameDirFor(id, info));
+  } catch (e) { console.warn(`[modpack] 拆联接 ${id} 失败`, e.message); }
   await versions.removeVersion(id, { permanent: true }).catch((e) => console.warn(`[modpack] 清理 ${id} 失败`, e.message));
 }
 

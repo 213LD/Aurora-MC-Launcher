@@ -270,8 +270,7 @@ function parent() {
         // 按提交号缓存（和 upgrade.js 共用）：两个仓库同名的 tag 是不同的代码，按 tag 名缓存会拿错
         src = ED.oldSrcDir(BASE, tag);
         if (!exists(path.join(src, 'package.json'))) {
-          await fsp.mkdir(src, { recursive: true });
-          execSync(`git archive --format=tar ${tag} src package.json | tar -x -C "${src.split(path.sep).join('/')}"`, { cwd: REPO, stdio: 'pipe', shell: 'bash' });
+          ED.extractTag(tag, src);
         }
       }
       const row = { tag };

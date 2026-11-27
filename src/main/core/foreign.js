@@ -159,6 +159,8 @@ async function mmcInstance(dir) {
     if (LOADER_UIDS[c.uid]) loader = { type: LOADER_UIDS[c.uid], version: String(c.version || c.cachedVersion || '') };
   }
   if (!mc) return null;
+  // 老的 MultiMC 实例里 Forge 的版本号写成「1.12.2-14.23.5.2860」（带着游戏版本）：去掉前面的游戏版本，装的时候才拼得对
+  if (loader && loader.type === 'forge' && loader.version.startsWith(`${mc}-`)) loader.version = loader.version.slice(mc.length + 1);
   let gameDir = path.join(dir, '.minecraft');
   if (!(await isDir(gameDir)) && (await isDir(path.join(dir, 'minecraft')))) gameDir = path.join(dir, 'minecraft');
   const name = ini('name') || path.basename(dir);
@@ -419,29 +421,39 @@ async function importForeign(input, choices, task) {
     if (it.kind !== 'mmc' || mode === 'saves') continue;
     const id = uniqueId(it.id, taken);
     task.update({ detail: `安装 ${nm(it.name)} 的 ${it.loader ? it.loader.type : 'Minecraft'} ${it.mc}…`, progress: -1 });
+    // 装到一半、复制到一半失败或取消：这个配置是这次新建的（uniqueId），整个删掉，不留半个配置在列表里
+    const cleanup = () => versions.removeVersion(id, { permanent: true }).catch((err) => console.warn(`[foreign] 清理 ${id} 失败`, err.message));
     try {
       await require('./loaders').install({ mc: it.mc, name: id, loader: it.loader }, task);
     } catch (e) {
+      await cleanup();
       if (e.cancelled) throw e;
       result.pending.push({ id: it.name, error: e.message, notInstalled: true });
       continue;
     }
-    if (mode === 'link') {
-      config.setVersionSettings(id, { customGameDir: path.resolve(it.gameDir) });
-    } else {
-      config.setVersionSettings(id, { isolation: 'on' });
-      const list2 = [];
-      await migrate.walk(it.gameDir, '', list2, (rel) => SKIP_TOP.test(rel.split('/')[0]));
-      let n = 0;
-      for (const f of list2) {
-        if (task.signal.aborted) throw Object.assign(new Error('已取消'), { cancelled: true });
-        const dest = path.join(versions.versionDir(id), ...f.rel.split('/'));
-        await fsp.mkdir(path.dirname(dest), { recursive: true });
-        const part = `${dest}.aurora-tmp`;
-        await fsp.copyFile(f.file, part);
-        await renameRetry(part, dest);
-        if (++n % 50 === 0) task.update({ detail: `复制 ${nm(it.name)}（${n}/${list2.length}）`, progress: n / list2.length });
+    try {
+      if (mode === 'link') {
+        config.setVersionSettings(id, { customGameDir: path.resolve(it.gameDir) });
+      } else {
+        config.setVersionSettings(id, { isolation: 'on' });
+        const list2 = [];
+        await migrate.walk(it.gameDir, '', list2, (rel) => SKIP_TOP.test(rel.split('/')[0]));
+        let n = 0;
+        for (const f of list2) {
+          if (task.signal.aborted) throw Object.assign(new Error('已取消'), { cancelled: true });
+          const dest = path.join(versions.versionDir(id), ...f.rel.split('/'));
+          await fsp.mkdir(path.dirname(dest), { recursive: true });
+          const part = `${dest}.aurora-tmp`;
+          await fsp.copyFile(f.file, part);
+          await renameRetry(part, dest);
+          if (++n % 50 === 0) task.update({ detail: `复制 ${nm(it.name)}（${n}/${list2.length}）`, progress: n / list2.length });
+        }
       }
+    } catch (e) {
+      await cleanup();
+      if (e.cancelled) throw e;
+      result.pending.push({ id: it.name, error: e.message, notInstalled: true });
+      continue;
     }
     if (it.jvmArgs) config.setVersionSettings(id, { jvmArgs: it.jvmArgs });
     await profiles.writeMeta(id, { type: it.loader ? 'custom' : 'vanilla', name: it.name === id ? undefined : it.name, importedFrom: { at: Date.now(), launcher, mode } }).catch(() => {});

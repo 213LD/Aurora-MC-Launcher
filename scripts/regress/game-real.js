@@ -167,11 +167,14 @@ function msMock(st) {
     if (u.includes('/oauth2/v2.0/devicecode')) {
       st.dcBodies = st.dcBodies || [];
       st.dcBodies.push(String(opts.body || ''));
-      return json({ device_code: 'dev', user_code: 'ABCD-1234', verification_uri: 'https://www.microsoft.com/link', expires_in: 60, interval: 1, message: '打开网页输入代码' });
+      return json({ device_code: 'dev', user_code: 'ABCD-1234', verification_uri: 'https://www.microsoft.com/link', expires_in: 60, interval: st.dcInterval || 1, message: '打开网页输入代码' });
     }
     if (u.includes('/oauth2/v2.0/token')) {
       const body = String(opts.body || '');
+      if (body.includes('refresh_token')) { st.refreshBodies = st.refreshBodies || []; st.refreshBodies.push(body); }
+      if (body.includes('refresh_token') && st.refreshDelay) await new Promise((r) => setTimeout(r, st.refreshDelay));
       if (body.includes('refresh_token') && st.refreshBad) return json({ error: 'invalid_grant', error_description: 'expired' }, 400);
+      if (body.includes('refresh_token') && st.refreshFlaky) return json({ error: 'temporarily_unavailable', error_description: 'try later' }, 503);
       st.polls = (st.polls || 0) + 1;
       if (!body.includes('refresh_token') && st.polls < 2) return json({ error: 'authorization_pending' }, 400);
       return json({ access_token: 'ms-access', refresh_token: `ms-refresh-${st.polls}`, expires_in: 3600 });
@@ -182,6 +185,7 @@ function msMock(st) {
     if (u.includes('/entitlements/')) return json({ items: st.noGame ? [] : [{ name: 'game_minecraft' }, { name: 'product_minecraft' }] });
     if (u.includes('/minecraft/profile')) return st.noGame ? json({ error: 'NOT_FOUND' }, 404) : json({ id: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', name: 'MsMock', skins: [{ state: 'ACTIVE', url: 'http://textures.minecraft.net/texture/mock-ms-skin', variant: 'CLASSIC' }], capes: [] });
     if (u === 'https://textures.minecraft.net/texture/mock-ms-skin') {
+      if (st.texDelay) await new Promise((r) => setTimeout(r, st.texDelay)); // 模拟网很慢
       const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAQ0lEQVR42u3PMQEAAAgDoJnc6BrDxwMNyDxNiYiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiI3mkBhQ0AAcvmB/gAAAAASUVORK5CYII=', 'base64');
       return new Response(png, { status: 200, headers: { 'content-type': 'image/png' } });
     }
@@ -701,6 +705,40 @@ const SCENARIOS = {
       check('account', '微软：令牌没有明文写进账户文件', !file.includes('ms-refresh') && !file.includes('ms-access'));
       const r = await accounts.refresh(acc.id);
       check('account', '微软：刷新令牌能用', !!r, st.calls.filter((x) => /token/.test(x)).length);
+      // 账户记着签发它的 Client ID：设置里换回默认以后，刷新还用当初登录的那个
+      config.set({ msClientId: '' });
+      st.refreshBodies = [];
+      await accounts.refresh(acc.id);
+      check('account', '微软：刷新用的是登录这个账户时的 Client ID（设置里改了也不变）', accounts.raw().find((x) => x.id === acc.id).msClientId === 'test-client' && (st.refreshBodies[0] || '').includes('client_id=test-client'), st.refreshBodies[0]);
+      // 同时刷新两次：合成一次请求（微软每次都换新的刷新令牌，两个请求拿同一个旧令牌会有一个失败）
+      st.refreshBodies = []; st.refreshDelay = 300;
+      const two = await Promise.all([accounts.refresh(acc.id), accounts.refresh(acc.id)]).then(() => 'ok', (e) => e.message);
+      st.refreshDelay = 0;
+      check('account', '微软：同一个账户同时刷新两次，只发一次刷新请求', two === 'ok' && st.refreshBodies.length === 1, { two, n: st.refreshBodies.length });
+      // 微软那边暂时出错（503）：不要玩家重新登录；令牌快过期但还能用时照样能进游戏
+      st.refreshFlaky = true;
+      const flaky = await accounts.refresh(acc.id).then(() => null, (e) => e);
+      const rawAcc = accounts.raw().find((x) => x.id === acc.id);
+      check('account', '微软：刷新时服务器暂时出错（503），不标成要重新登录，提示稍后再试', !!flaky && !flaky.needRelogin && !rawAcc.needRelogin && /稍后再试/.test(flaky.message), flaky && flaky.message);
+      const realExp = rawAcc.mcExpiresAt;
+      rawAcc.mcExpiresAt = Date.now() + 5 * 60000; // 还有 5 分钟过期：会先刷新
+      const steps2 = [];
+      const auth = await accounts.getLaunchAuth(acc.id, (s) => steps2.push(s)).then((x) => x, (e) => e.message);
+      check('account', '微软：快过期、刷新又暂时失败时，用手里还没过期的令牌照样能启动，并说一声', auth && auth.type === 'microsoft' && !!auth.accessToken && steps2.some((s) => /先用现有的登录/.test(s)), { auth: auth && auth.type ? auth.type : auth, steps2 });
+      rawAcc.mcExpiresAt = Date.now() + 30000; // 只剩 30 秒：不能再用了，照常报错
+      const expired = await accounts.getLaunchAuth(acc.id, () => {}).then(() => null, (e) => e.message);
+      check('account', '微软：令牌马上就过期、刷新又失败时，不拿它启动，报出原因', !!expired && /稍后再试/.test(expired), expired);
+      rawAcc.mcExpiresAt = realExp; st.refreshFlaky = false;
+      // 等授权时点了取消：马上停，不用等完这一轮的间隔（以前要等上一轮 5 秒）
+      st.dcInterval = 5; st.polls = 0;
+      await accounts.msStart();
+      const t1 = Date.now();
+      const waiting = accounts.msWait(() => {}).then(() => 'logged-in', (e) => (e.cancelled ? 'cancelled' : e.message));
+      await new Promise((res) => setTimeout(res, 200));
+      accounts.msCancel();
+      const cancelled = await waiting;
+      check('account', '微软：等授权时取消，马上停下（1 秒内）', cancelled === 'cancelled' && Date.now() - t1 < 1200, { cancelled, ms: Date.now() - t1 });
+      st.dcInterval = 0; config.set({ msClientId: 'test-client' });
       // 模拟旧版本升级导入后还没有 skinCache 的微软账户：导出不带 cache，重新导入后能立即升级 https 并后台补拉
       const exported = accounts.exportList();
       await accounts.remove(acc.id);
@@ -709,6 +747,35 @@ const SCENARIOS = {
       await accounts.syncMissingMicrosoftSkins();
       const postView = accounts.list().accounts.find((x) => x.id === acc.id);
       check('account', '微软：旧账户无本地缓存时先升 https，补拉后变成本地缓存且进入皮肤中心', preView && /^https:\/\//.test(preView.skin && preView.skin.url || '') && postView && /^file:\/\//.test(postView.skin && postView.skin.url || ''), { pre: preView && preView.skin, post: postView && postView.skin });
+      // 已经同步过的：过了很久再列账户、开皮肤中心，也不再联网下皮肤（以前条件里多了个恒为真的「|| !null」，每分钟下一次）
+      const texCalls = () => st.calls.filter((x) => /textures\.minecraft\.net/.test(x)).length;
+      const tex0 = texCalls();
+      const realNow = Date.now;
+      Date.now = () => realNow() + 3600000;
+      try { accounts.list(); await accounts.syncMissingMicrosoftSkins(); await skins.libraryAll(); await accounts.syncMissingMicrosoftSkins(); } finally { Date.now = realNow; }
+      check('account', '微软：已经同步过的皮肤，一小时后再列账户、开皮肤中心也不重新下载', texCalls() === tex0, { before: tex0, after: texCalls() });
+      // 再同步一次（重新登录、刷新时会同步）：皮肤中心里这张留在原来的位置，不被挪到最前面
+      const other = require('electron').nativeImage.createFromBitmap(Buffer.alloc(64 * 64 * 4, 200), { width: 64, height: 64 }).toPNG();
+      await skins.libraryAdd({ png: other, model: 'classic', name: '后加的皮肤' });
+      const order0 = (await skins.libraryAll()).items.map((x) => x.name);
+      await accounts.syncMicrosoftSkin(accounts.raw().find((x) => x.id === acc.id));
+      const order1 = (await skins.libraryAll()).items.map((x) => x.name);
+      check('account', '微软：再同步一次，皮肤中心里正版皮肤的位置不变', order0[0] === '后加的皮肤' && JSON.stringify(order0) === JSON.stringify(order1), { order0, order1 });
+      // 打开皮肤中心不等补拉：有个账户要补拉、而且网很慢（8 秒）时，皮肤中心照样马上打开
+      const bus = ipc();
+      const exported2 = accounts.exportList();
+      await accounts.remove(acc.id);
+      await accounts.importList(exported2);
+      st.texDelay = 8000;
+      const t0 = realNow();
+      const libR = await bus.call('skins:libraryAll');
+      const took = realNow() - t0;
+      check('account', '微软：有账户要补拉皮肤、网又很慢时，打开皮肤中心不用等下载（2 秒内）', libR && libR.ok !== false && took < 2000, { took, ok: libR && libR.ok });
+      await waitFor(() => texCalls() > tex0, 5000);
+      await waitFor(async () => { const v = accounts.list().accounts.find((x) => x.id === acc.id); return v && /^file:/.test((v.skin && v.skin.url) || ''); }, 20000);
+      st.texDelay = 0;
+      const after2 = accounts.list().accounts.find((x) => x.id === acc.id);
+      check('account', '微软：后台补拉完成后皮肤变成本地缓存', after2 && /^file:/.test((after2.skin && after2.skin.url) || ''), after2 && after2.skin);
       st.refreshBad = true;
       const bad = await accounts.refresh(acc.id).then(() => null, (e) => e.message);
       check('account', '微软：刷新令牌过期，提示重新登录', !!bad && /登录/.test(bad), bad);
@@ -730,7 +797,7 @@ const SCENARIOS = {
   await app.whenReady();
   const name = process.argv[process.argv.length - 1];
   if (!SCENARIOS[name]) { console.log(`场景：${Object.keys(SCENARIOS).join(' ')}`); finish(2); return; }
-  if (name !== 'ms' && (!SRC || !JAVA)) { check('real', '跳过：没设 AURORA_REGRESS_GAME_SRC / AURORA_REGRESS_JAVA_HOME', true); finish(); return; }
+  if (name !== 'ms' && (!SRC || !JAVA)) { check('real', '没跑：缺环境变量 AURORA_REGRESS_GAME_SRC / AURORA_REGRESS_JAVA_HOME（没跑不能算通过）', false); finish(2); return; }
   try {
     await SCENARIOS[name]();
   } catch (e) {

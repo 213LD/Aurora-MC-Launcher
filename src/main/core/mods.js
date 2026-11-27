@@ -9,7 +9,7 @@ const versions = require('./versions');
 const modrinth = require('./modrinth');
 const curseforge = require('./curseforge');
 const profiles = require('./profiles');
-const { downloadFile } = require('../engine/downloader');
+const { downloadFile, isValid } = require('../engine/downloader');
 const { withZip, ZipReader } = require('../engine/zip');
 const { exists, hashFile, pool, safeTrash, inUse, inUseError, capMap, renameRetry } = require('../engine/util');
 const { nm } = require('../../shared/i18n');
@@ -369,7 +369,10 @@ async function toggleMod(filePath, enable) {
   let target = filePath;
   if (enable && isDisabled) target = filePath.slice(0, -'.disabled'.length);
   else if (!enable && !isDisabled) target = `${filePath}.disabled`;
-  if (target !== filePath) await renameRetry(filePath, target);
+  if (target === filePath) return target;
+  // 另一个名字已经有文件了（a.jar 和 a.jar.disabled 两份都在）：改名会把那一份悄悄盖掉，停下让玩家自己挑
+  if (await exists(target)) throw new Error(`已经有一个「${nm(path.basename(target))}」了（同一个 Mod 启用、禁用的两份都在），先删掉不要的那一份再切换`);
+  await renameRetry(filePath, target);
   return target;
 }
 
@@ -521,12 +524,19 @@ async function deletePreset(versionId, name) {
 async function disableAll(versionId) {
   const { mods: list } = await listMods(versionId);
   const off = [];
-  for (const m of list) {
-    if (!m.enabled) continue;
-    await toggleMod(m.path, false);
-    off.push(m.base);
+  const record = () => profiles.updateMeta(versionId, (cur) => ({ modsOff: [...new Set([...(cur.modsOff || []), ...off])], modsOffAt: Date.now() }));
+  try {
+    for (const m of list) {
+      if (!m.enabled) continue;
+      await toggleMod(m.path, false);
+      off.push(m.base);
+    }
+  } catch (e) {
+    // 禁用到一半出错（文件被占着）：已经禁用的也要记下来，「恢复全部」才能把它们放回去
+    if (off.length) await record().catch(() => {}); // pitfall-ok：下面照样把原来的错误抛给玩家，这里只是尽量记下
+    throw e;
   }
-  const meta = await profiles.updateMeta(versionId, (cur) => ({ modsOff: [...new Set([...(cur.modsOff || []), ...off])], modsOffAt: Date.now() }));
+  const meta = await record();
   return { disabled: off.length, total: meta.modsOff.length };
 }
 
@@ -561,9 +571,11 @@ async function installProjectVersion({ versionId, projectVersion, kind = 'mod', 
     const file = pv.files.find((f) => f.primary) || pv.files[0];
     if (!file) return;
     const dest = path.join(dir, file.filename);
-    if (!(await exists(dest))) {
+    // 已经有这个文件：按大小和 SHA-1 看它是不是完整的（以前只看在不在，下载到一半坏掉的文件就一直留着）
+    const want = { urls: [file.url], path: dest, sha1: file.sha1, size: file.size };
+    if (!(await isValid(want))) {
       task.update({ detail: `下载 ${nm(file.filename)}` });
-      await downloadFile({ urls: [file.url], path: dest, sha1: file.sha1, size: file.size }, { task, label: file.filename });
+      await downloadFile(want, { task, label: file.filename });
     }
     installed.push(file.filename);
     if (kind === 'mod') {

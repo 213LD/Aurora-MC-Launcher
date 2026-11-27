@@ -176,7 +176,7 @@
 
   function resCard(p) {
     const fallback = rs.type === 'mod' ? 'fabric' : rs.type === 'shader' ? 'diamond' : rs.type === 'modpack' ? 'neoforge' : 'grass';
-    return h('div.res-card', { onclick: () => openProject(p) },
+    return h('div.res-card', { tabindex: '0', role: 'button', onclick: () => openProject(p) },
       h('img.r-ico', { src: p.icon || A.blockImage(fallback, 64), loading: 'lazy', onerror: (e) => { e.target.src = A.blockImage('unknown', 64); } }),
       h('div.r-body',
         // 名字、作者、简介是作者自己写的（和详情里的正文一样）：不翻译
@@ -289,10 +289,14 @@
       },
     }, icon('download', 14), '安装');
 
+    let verSeq = 0;
     async function loadVersions() {
+      // 「显示全部版本」来回点：后发的先回来时，先发的那次不能再把列表盖回去
+      const my = ++verSeq;
       A.mount(verList, h('div.row', { style: { justifyContent: 'center', padding: '20px' } }, h('span.spinner')));
       try {
         const vs = await S.versions(p.id, showAll || !tv ? { type: rs.type } : { type: rs.type, loader: tv.loader ? tv.loader.type : undefined, gameVersion: tv.mcVersion });
+        if (my !== verSeq) return;
         if (!vs.length) {
           A.mount(verList, A.emptyState({ iconName: 'box', title: '没有适用于该版本的文件', text: tv ? `${A.nm(p.title)} 暂不支持 ${A.nm(tv.mcVersion)}${tv.loader ? ` · ${(A.LOADERS[tv.loader.type] || {}).name}` : ''}` : '' }));
           return;
@@ -307,7 +311,7 @@
             h('div.actions', isPack ? packButton(v) : installButton(v)));
         }));
       } catch (e) {
-        A.mount(verList, A.errInline('加载失败', e));
+        if (my === verSeq) A.mount(verList, A.errInline('加载失败', e));
       }
     }
     loadVersions();

@@ -289,8 +289,7 @@ function parent() {
       const srcDir = ED.oldSrcDir(BASE, tag);
       if (!srcDir) { check(tag, '找得到这个版本的代码', false, '这份代码里没有这个 git tag'); continue; }
       if (!fs.existsSync(path.join(srcDir, 'package.json'))) {
-        fs.mkdirSync(srcDir, { recursive: true });
-        execSync(`git archive --format=tar ${tag} src package.json | tar -x -C "${srcDir.split(path.sep).join('/')}"`, { cwd: REPO, stdio: 'pipe', shell: 'bash' });
+        ED.extractTag(tag, srcDir);
       }
       const root = path.join(BASE, 'upgrade', tag);
       await fsp.rm(root, { recursive: true, force: true });

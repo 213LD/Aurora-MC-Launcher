@@ -16,6 +16,7 @@ const modpack = require('./modpack');
 const envelope = require('../engine/envelope');
 const { downloadAll } = require('../engine/downloader');
 const { exists, pool } = require('../engine/util');
+const { fileNameOnly } = require('../engine/fileops');
 const store = require('../engine/jsonstore');
 const { nm, nmJoin } = require('../../shared/i18n');
 
@@ -346,7 +347,18 @@ async function resolve({ mc, loader, items = [] }) {
 }
 
 /** 按计划安装：创建（或使用已有）游戏配置并下载全部 Mod */
-async function install({ plan, resolved, target }, task) {
+async function install(params, task) {
+  const created = { id: null };
+  try {
+    return await installInto(params, task, created);
+  } catch (e) {
+    // 新建的配置装到一半失败或取消：整个删掉（是这次新建的，里面没有玩家的东西），不留半个配置在列表里。装进已有配置的不删
+    if (created.id) await versions.removeVersion(created.id, { permanent: true }).catch((err) => console.warn(`[planner] 清理 ${created.id} 失败`, err.message));
+    throw e;
+  }
+}
+
+async function installInto({ plan, resolved, target }, task, created) {
   const { mc, loader } = plan;
   let versionId;
   if (target.mode === 'existing') {
@@ -363,6 +375,7 @@ async function install({ plan, resolved, target }, task) {
     const list = await loaders.list(loader, mc);
     const lv = list.find((x) => x.recommended) || list.find((x) => x.stable) || list[0];
     if (!lv) throw new Error(`${loader} 不支持 Minecraft ${mc}`);
+    created.id = versionId;
     await loaders.install({ mc, name: versionId, loader: { type: loader, version: lv.version, full: lv.full } }, task);
   }
   await profiles.markProfile(versionId, plan.profileType || 'planner', {
@@ -373,7 +386,8 @@ async function install({ plan, resolved, target }, task) {
   const { dir } = await mods.targetDir(versionId, 'mod');
   await fsp.mkdir(dir, { recursive: true });
   const ok = (resolved.items || []).filter((i) => i.status === 'ok' && i.version && i.version.file && /^https:\/\//.test(i.version.file.url));
-  const files = ok.map((i) => ({ urls: [i.version.file.url], path: path.join(dir, i.version.file.filename), sha1: i.version.file.sha1, size: i.version.file.size }));
+  // 文件名来自网络（经过界面传回来）：只留最后一段再拼进 mods 文件夹
+  const files = ok.map((i) => ({ urls: [i.version.file.url], path: path.join(dir, fileNameOnly(i.version.file.filename, 'mod.jar')), sha1: i.version.file.sha1, size: i.version.file.size }));
   await downloadAll(files, { task, label: '下载 Mod' });
 
   let copied = 0;
@@ -381,7 +395,7 @@ async function install({ plan, resolved, target }, task) {
     if (await exists(it.localPath)) { await fsp.copyFile(it.localPath, path.join(dir, path.basename(it.localPath))); copied++; }
   }
   const entries = {};
-  for (const i of ok) entries[i.version.file.filename] = { projectId: i.projectId, versionId: i.version.id, versionNumber: i.version.number, slug: i.slug, title: i.title, icon: i.icon, source: 'modrinth' };
+  for (const i of ok) entries[fileNameOnly(i.version.file.filename, 'mod.jar')] = { projectId: i.projectId, versionId: i.version.id, versionNumber: i.version.number, slug: i.slug, title: i.title, icon: i.icon, source: 'modrinth' };
   await profiles.setModInfo(versionId, entries);
 
   const { autoDeps, unresolved } = await fillMissingDeps(versionId, task);

@@ -236,7 +236,8 @@ function collectLibraries(v, opts = {}) {
 async function ensureAssetIndex(v, task) {
   const idx = v.assetIndex;
   if (!idx) return null;
-  const p = path.join(assetsDir(), 'indexes', `${idx.id}.json`);
+  // 版本文件可能来自整合包、别的启动器：里面的 id、文件名拼进路径之前都要查一遍，不能跑到文件夹外面
+  const p = safeJoin(path.join(assetsDir(), 'indexes'), `${idx.id}.json`, '资源索引');
   await downloadFile({ urls: mirrors.candidates(idx.url), path: p, sha1: idx.sha1, size: idx.size }, { task, label: '资源索引', verify: 'hash' });
   const index = await readJson(p);
   if (!index || !index.objects) throw new Error('资源索引文件损坏');
@@ -269,7 +270,9 @@ async function prepareLegacyAssets(v, gameDir) {
   const target = index.map_to_resources ? path.join(gameDir, 'resources') : path.join(assetsDir(), 'virtual', idx.id);
   const entries = Object.entries(index.objects);
   for (const [name, o] of entries) {
-    const dest = path.join(target, name);
+    if (!o || !/^[0-9a-f]{40}$/i.test(o.hash)) continue;
+    let dest;
+    try { dest = safeJoin(target, name, '资源'); } catch { continue; }
     if (await exists(dest)) continue;
     const src = path.join(assetsDir(), 'objects', o.hash.slice(0, 2), o.hash);
     await fsp.mkdir(path.dirname(dest), { recursive: true });
@@ -334,7 +337,7 @@ async function completeVersion(id, task, opts = {}) {
   // 日志配置
   const logFile = v.logging && v.logging.client && v.logging.client.file;
   if (logFile) {
-    files.push({ urls: mirrors.candidates(logFile.url), path: path.join(assetsDir(), 'log_configs', logFile.id), sha1: logFile.sha1, size: logFile.size });
+    files.push({ urls: mirrors.candidates(logFile.url), path: safeJoin(path.join(assetsDir(), 'log_configs'), logFile.id, '日志配置'), sha1: logFile.sha1, size: logFile.size });
   }
 
   // 资源

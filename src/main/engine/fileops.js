@@ -11,7 +11,7 @@
 const fsp = require('fs').promises;
 const path = require('path');
 const { constants } = require('fs');
-const { exists, renameRetry, rmrf, queued, fileKey, throwIfAborted, writeSynced } = require('./util');
+const { exists, renameRetry, rmrf, queued, fileKey, throwIfAborted, writeSynced, writeQueues } = require('./util');
 const { safeName, isDeviceName } = require('../../shared/pathrules');
 
 // ───────────────────────── 路径 ─────────────────────────
@@ -63,7 +63,6 @@ function fileNameOnly(name, fallback = '未命名文件') {
 
 // ───────────────────────── 写文件 ─────────────────────────
 let tmpSeq = 0;
-const writeQueues = new Map();
 
 /** 先写临时文件再改名替换：写到一半崩溃或断电，原来的文件还在。同一个文件的写入排队 */
 function writeFileSafe(p, data, options) {

@@ -124,7 +124,7 @@
             h('img', { src: p.icon || A.blockImage('unknown', 64), loading: 'lazy', onerror: (e) => { e.target.src = A.blockImage('unknown', 64); } }),
             h('div.p-body',
               h('div.p-title', h('b.mn-zh', { 'data-key': A.mcmodUi.keyOf({ source, slug: p.slug, id: p.id }) }, A.modNames.zhOf(p) ? `${A.modNames.zhOf(p)} ` : ''), h(A.modNames.zhOf(p) ? 'span' : 'b', A.nm(p.title)), h('span.faint', ` · ${A.fmtNum(p.downloads)} 下载`), p.allowDistribution === false ? A.sources.manualBadge() : null),
-              h('div.p-desc', A.nm(p.description))),
+              h('div.p-desc', { 'data-no-tr': '' }, A.nm(p.description))),
             btn);
         });
         if (append) rows.forEach((el) => list.appendChild(el)); else A.mount(list, rows);

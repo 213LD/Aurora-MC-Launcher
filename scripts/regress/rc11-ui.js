@@ -87,9 +87,12 @@ const MODAL = "[...document.querySelectorAll('.modal-back')].find((m) => /调试
     await ev(`${CLEAN} 1`);
   }
   // 危险操作的确认框：没解除安全限制时主按钮要等几秒才能点
-  o = await ev(`(async () => { ${CLEAN} A.dangerConfirm({ level: 2, title: '测试危险确认', text: '不会真的删除任何东西', items: ['示例文件 A'] }); await new Promise((r) => setTimeout(r, 500));
-    const m = [...document.querySelectorAll('.modal-back .modal')].pop(); const b = m && [...m.querySelectorAll('.modal-foot .btn')].pop(); const r1 = { shown: !!m, text: b ? b.textContent : '', disabled: b ? b.disabled : null, hook: !!(A.hooks.noDangerWait && A.hooks.noDangerWait()) }; ${CLEAN} return r1; })()`);
-  check('调试菜单', '危险操作确认框的等待没有被调试菜单关掉（跳过等待的开关是关着的）', o.shown && !o.hook, o);
+  // 要等的是第 3 级的第二步（第 1、2 级没有倒计时）：点「继续」进第二步再看主按钮
+  o = await ev(`(async () => { ${CLEAN} A.dangerConfirm({ level: 3, title: '测试危险确认', text: '不会真的删除任何东西', items: ['示例文件 A'] }); await new Promise((r) => setTimeout(r, 400));
+    const m = [...document.querySelectorAll('.modal-back .modal')].pop(); const go = m && [...m.querySelectorAll('.modal-foot .btn')].pop(); if (go) go.click();
+    await new Promise((r) => setTimeout(r, 300));
+    const b = m && [...m.querySelectorAll('.modal-foot .btn')].pop(); const r1 = { shown: !!m, text: b ? b.textContent : '', disabled: b ? b.disabled : null, hook: !!(A.hooks.noDangerWait && A.hooks.noDangerWait()) }; ${CLEAN} return r1; })()`);
+  check('调试菜单', '危险操作确认框的等待没有被调试菜单关掉：跳过等待的开关是关着的，主按钮刚弹出时点不了', o.shown && !o.hook && o.disabled === true, o);
 
   // ── 三、海里的鱼 ──
   // 以前的测试报过一次「热带鱼想游却不动」，没重现。查下来是跟着鱼群的鱼：带头的停下来它跟着停，但它身上「正在游」的标记是旧值。

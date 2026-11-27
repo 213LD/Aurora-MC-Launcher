@@ -111,7 +111,7 @@
   }
 
   function card(v, selected) {
-    return h('div', { class: `pcard ${selected ? 'selected' : ''}`, onclick: () => A.setConfig({ selectedVersion: v.id }), ondblclick: () => A.launch(v.id) },
+    return h('div', { class: `pcard ${selected ? 'selected' : ''}`, tabindex: '0', role: 'button', 'aria-pressed': selected ? 'true' : 'false', onclick: () => A.setConfig({ selectedVersion: v.id }), ondblclick: () => A.launch(v.id) },
       selected ? h('span.badge.accent.pc-cur', icon('check', 12), '当前') : null,
       h('div.pc-top',
         img(v, 'img.pc-icon'),

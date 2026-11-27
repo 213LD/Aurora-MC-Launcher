@@ -11,7 +11,7 @@
  */
 const fs = require('fs');
 const path = require('path');
-const { start, BASE_CONFIG, fakeVersion } = require('./robust-ui');
+const { start, BASE_CONFIG, fakeVersion, lookShown } = require('./robust-ui');
 const { guard, ready, until, calm } = require('./cdp');
 
 const BASE = require('./editions').BASE;
@@ -87,7 +87,7 @@ async function functional() {
   await ev(`(async () => { ${clean} A.go('settings'); const c = document.querySelector('#page-settings .set-cat[data-cat=general]'); if (c) c.click(); })()`);
   await until(ev, "!![...document.querySelectorAll('#page-settings .set-group h3')].find((h) => /微软登录/.test(h.textContent))", 8000);
   o = await ev("(() => { const g = [...document.querySelectorAll('#page-settings .set-group')].find((x) => /微软登录/.test((x.querySelector('h3') || {}).textContent || '')); const inp = g && g.querySelector('input'); return { text: g && g.innerText, ph: inp && inp.placeholder, hasSoon: !!(g && g.querySelector('.soon-tag')) }; })()");
-  check('设置', '设置「常规 → 微软登录」显示内置说明与可选 Client ID 输入框', !o.hasSoon && /Azure 应用 Client ID/.test(o.text || '') && /内置/.test(o.text || '') && /内置/.test(o.ph || ''), o);
+  check('设置', '设置「常规 → 微软登录」显示内置说明与可选 Client ID 输入框', !o.hasSoon && /自定义 Client ID/.test(o.text || '') && /Azure/.test(o.text || '') && /内置/.test(o.text || '') && /内置/.test(o.ph || ''), o);
 
   // 空 msClientId 直接设备码登录成功
   await ev(`(async () => { ${clean} A.go('accounts'); })()`);
@@ -179,6 +179,7 @@ async function looks() {
     const a = await start(`ms-login-look-${n++}`, { prepare, badnet: 'fixture', config: (game) => ({ ...BASE_CONFIG(game), ...cfg }) });
     if (a.startError) { check('外观', `${name}：能打开`, false, a.startError); continue; }
     await ready(a.ev);
+    { const lk = await lookShown(a, cfg); check('外观', `${name}：外观真的换上了`, !lk, lk); }
     const ev = (code, t = 15000) => a.ev(code, t);
     const en = cfg.language === 'en';
     const bad = [];

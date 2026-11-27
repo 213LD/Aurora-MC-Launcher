@@ -227,9 +227,8 @@ async function detect(force = false) {
     const results = (await Promise.all([...seen.values()].map((c) => probe(c.home, c.source).catch(() => null)))).filter(Boolean);
     results.sort((a, b) => b.major - a.major || b.version.localeCompare(a.version, undefined, { numeric: true }));
     cache = results;
-    scanning = null;
     return results;
-  })();
+  })().finally(() => { scanning = null; }); // 中途出错也要放开：以前出错后 scanning 一直留着这个失败的结果，之后每次检测都直接失败
   return scanning;
 }
 
@@ -439,8 +438,11 @@ async function unpackRuntime(archive, name, meta, task) {
 
 async function uninstallRuntime(home) {
   const root = path.resolve(paths.runtimeDir());
-  const h = path.resolve(home);
-  if (!h.startsWith(root + path.sep)) throw new Error('只能删除由 Aurora 下载的 Java');
+  const h = path.resolve(String(home || ''));
+  // Windows 的路径不分大小写：界面传来的 c:\... 和 C:\... 是同一个地方（以前 startsWith 区分大小写，会误判成「不是 Aurora 下载的」）
+  const same = (a, b) => (isWin ? a.toLowerCase() === b.toLowerCase() : a === b);
+  const rel = path.relative(root, h);
+  if (!rel || rel.startsWith('..') || path.isAbsolute(rel) || !same(path.join(root, rel), h)) throw new Error('只能删除由 Aurora 下载的 Java');
   const top = path.join(root, path.relative(root, h).split(path.sep)[0]);
   await rmrf(top);
   // 比较时带上分隔符：java-runtime-gamma 不能算进 java-runtime-gamma-snapshot（1.10.8）

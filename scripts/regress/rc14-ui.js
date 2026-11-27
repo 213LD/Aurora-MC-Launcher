@@ -113,9 +113,13 @@ const ICON_HASH = process.env.AURORA_PRINT_ICON_HASH ? null : require('./rc14-ic
   check('出错', '一个生物更新出错：只去掉它自己，别的生物照常走', !o.threw && o.moved > 0.3 && o.badGone && o.newErrors === 1, o);
 
   // ── 二、游戏配置页：图标和以前一样，字体预热做完 ──
-  const icons = await ev(`(() => { const out = {}; const fnv = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(16); };
-    for (const k of ['grass', 'snapshot', 'old', 'fabric', 'quilt', 'forge', 'neoforge', 'optifine', 'liteloader', 'diamond', 'unknown']) for (const n of [32, 48, 64, 96]) out[k + ':' + n] = fnv(A.blockImage(k, n));
-    return out; })()`);
+  // 比的是解码以后的像素（RGBA），不是 toDataURL 的字符串：同样的像素，换了显卡 / 软件渲染，PNG 编出来的字节就不一样，以前在别的电脑上一直报变了
+  const icons = await ev(`(async () => { const out = {}; const fnv = (bytes) => { let h = 2166136261; for (let i = 0; i < bytes.length; i++) { h ^= bytes[i]; h = Math.imul(h, 16777619); } return (h >>> 0).toString(16); };
+    const pixels = (url, n) => new Promise((res, rej) => { const img = new Image(); img.onload = () => { const c = document.createElement('canvas'); c.width = n; c.height = n; const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0); res(g.getImageData(0, 0, n, n).data); }; img.onerror = () => rej(new Error('图标解码失败')); img.src = url; });
+    // 半透明的边缘像素：画布按预乘存，显卡和软件渲染取整不一样（同一台电脑换了渲染方式也会变）。只比不透明像素的颜色和粗分的透明度
+    const stable = (d) => { const o = []; for (let i = 0; i < d.length; i += 4) { o.push(d[i + 3] >> 4); if (d[i + 3] === 255) o.push(d[i], d[i + 1], d[i + 2]); } return o; };
+    for (const k of ['grass', 'snapshot', 'old', 'fabric', 'quilt', 'forge', 'neoforge', 'optifine', 'liteloader', 'diamond', 'unknown']) for (const n of [32, 48, 64, 96]) out[k + ':' + n] = fnv(stable(await pixels(A.blockImage(k, n), n)));
+    return out; })()`, 30000);
   if (!ICON_HASH) { fs.writeFileSync(path.join(__dirname, 'rc14-icons.json'), `${JSON.stringify(icons, null, 1)}\n`); console.log('  已写下图标指纹 rc14-icons.json'); }
   else {
     const diff = Object.keys(ICON_HASH).filter((k) => ICON_HASH[k] !== icons[k]);

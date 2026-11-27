@@ -143,6 +143,34 @@ const SCENARIOS = {
   },
 
   // ── 老用户升级：1.10.6 写的文件原样能读，没有误报，文件格式不变 ──
+  // 每次启动都读一遍设置：内容没变就不重写（以前每次都写，.bak 也跟着被换成同一份）；补了东西才写
+  async 'config-quiet-load'() {
+    const { data } = setup('config-quiet-load');
+    const f = path.join(data, 'config.json');
+    const config = core('config');
+    config.set({ theme: 'light', setupDone: true, disclaimerAccepted: require('./editions').DISCLAIMER });
+    await config.flush();
+    config.set({ accent: 'ocean' });
+    await config.flush();
+    const stamp = () => [f, `${f}.bak`].map((x) => (fs.existsSync(x) ? `${fs.statSync(x).mtimeMs}:${fs.readFileSync(x, 'utf8')}` : '-'));
+    const before = stamp();
+    await sleep(50); // pitfall-ok：让文件的修改时间能分得出先后
+    config.load();
+    await sleep(600); // pitfall-ok：保存是攒 200 毫秒再写的，要等过这一段才知道它写没写
+    check('设置', '再读一遍、内容没变：config.json 和 .bak 都没被重写', JSON.stringify(stamp()) === JSON.stringify(before), { changed: stamp().map((x, i) => x !== before[i]) });
+    const raw = JSON.parse(fs.readFileSync(f, 'utf8'));
+    delete raw.clientToken;
+    fs.writeFileSync(f, JSON.stringify(raw, null, 2));
+    config.load();
+    await sleep(600); // pitfall-ok：同上，攒 200 毫秒再写
+    const after = JSON.parse(fs.readFileSync(f, 'utf8'));
+    check('设置', '读的时候补了东西（缺 clientToken）：照常写回去', typeof after.clientToken === 'string' && after.clientToken.length > 10 && after.accent === 'ocean', { clientToken: after.clientToken });
+    // 配置的单独设置：界面传来的配置名、设置不对就不收
+    const bad = [['', {}], ['__proto__', {}], [42, {}], ['X', 'on'], ['X', [1]]].filter(([id, s]) => { try { config.setVersionSettings(id, s); return true; } catch { return false; } });
+    config.setVersionSettings('X', JSON.parse('{"isolation":"on","__proto__":{"polluted":1}}'));
+    const vs = config.getVersionSettings('X');
+    check('设置', '配置的单独设置：配置名不是正常字符串、设置不是对象的都不收；__proto__ 这种名字去掉', bad.length === 0 && vs.isolation === 'on' && !Object.prototype.hasOwnProperty.call(vs, '__proto__') && ({}).polluted === undefined, { accepted: bad.map((x) => String(x[0])), vs });
+  },
   async 'old-data'() {
     const { data, game } = setup('old-data');
     await fsp.writeFile(path.join(data, 'config.json'), JSON.stringify({ gameDir: game, setupDone: true, disclaimerAccepted: require('./editions').DISCLAIMER, theme: 'light', configVersion: 5, versionSettings: { P: { isolation: 'on', java: 'auto' } } }, null, 2));
@@ -425,6 +453,136 @@ const SCENARIOS = {
   },
 
   // ── 6-3 回收站（AURORA_REGRESS_REAL_TRASH=1 时用真实回收站，只动这里自己建的 aurora-regress-trash-test-* 文件） ──
+  // ── 换 MC 版本前先备份存档（components.apply）：以前 backup.worlds() 给的是对象、这里当数组用，备份从来没做 ──
+  async 'component-backup'() {
+    setup('component-backup');
+    const { makeWorld } = require('./game-kit');
+    const comps = core('components');
+    const backup = core('backup');
+    const loaders = core('loaders');
+    const realBuild = loaders.buildJson;
+    let built = 0;
+    // 走到下载新版本这一步就停：测试不真的下载；备份是在这一步之前做的
+    loaders.buildJson = async () => { built++; throw new Error('测试到这里为止'); };
+    const task = { update() {}, signal: undefined };
+    const plan = (from) => ({ from: { mc: from, loader: { type: 'fabric', version: '0.15.0' } }, to: { mc: '1.21.1', loader: null }, mcChanged: true, mode: 'none', mods: [] });
+    try {
+      // 有世界：先备份
+      const dir = await fakeVersion('CB', { extra: { clientVersion: '1.20.1' } });
+      core('config').setVersionSettings('CB', { isolation: 'on' });
+      await makeWorld(path.join(dir, 'saves'), 'MyWorld');
+      const json0 = await fsp.readFile(path.join(dir, 'CB.json'), 'utf8');
+      const e1 = await comps.apply('CB', { mc: '1.21.1' }, plan('1.20.1'), task).then(() => null, (e) => e.message);
+      const list = (await backup.list('CB')).own;
+      const auto = list.filter((x) => x.auto === 'component');
+      check('comp', '换 MC 版本前自动备份了存档，备份里有这个世界', auto.length === 1 && auto[0].type === 'saves' && JSON.stringify(auto[0].worlds).includes('MyWorld'), { err: e1, list: list.map((x) => ({ name: x.name, auto: x.auto, worlds: x.worlds })) });
+      check('comp', '下载新版本那一步失败：版本信息原样退回', (await fsp.readFile(path.join(dir, 'CB.json'), 'utf8')) === json0 && built === 1, { built });
+      // 没有世界：不备份，照常往下走
+      const dir2 = await fakeVersion('CN', { extra: { clientVersion: '1.20.1' } });
+      core('config').setVersionSettings('CN', { isolation: 'on' });
+      await comps.apply('CN', { mc: '1.21.1' }, plan('1.20.1'), task).catch(() => null);
+      check('comp', '没有世界时不备份，照常往下走', (await backup.list('CN')).own.length === 0 && built === 2 && !!dir2, { built });
+      // 读不出存档：停下，不在没备份的情况下换版本
+      const realWorlds = backup.worlds;
+      backup.worlds = async () => { throw new Error('存档文件夹读不了'); };
+      let e3;
+      try { e3 = await comps.apply('CB', { mc: '1.21.1' }, plan('1.20.1'), task).then(() => null, (e) => e.message); } finally { backup.worlds = realWorlds; }
+      check('comp', '读不出存档时停下、不换版本，说清楚原因', /读不出这个配置的存档/.test(e3 || '') && built === 2, { e3, built });
+    } finally { loaders.buildJson = realBuild; }
+  },
+  // ── 选了「新配置默认共享存档」时装整合包：整合包自带的世界、资源包不能写进公共 .minecraft（以前先联接再解压，同名的世界被盖掉）──
+  async 'pack-shared-default'() {
+    const { root, game } = setup('pack-shared-default');
+    const config = core('config');
+    config.set({ newProfileIsolation: 'shared' });
+    const loaders = core('loaders');
+    const modpack = core('modpack');
+    const { ZipWriter } = core('zip');
+    const realInstall = loaders.install;
+    loaders.install = async ({ name }) => { await fakeVersion(name, { extra: { clientVersion: '1.20.1' } }); }; // 不下载：只建一个配置
+    const task = { update() {}, signal: new AbortController().signal };
+    const mk = async (file, name, extra) => {
+      const w = await ZipWriter.create(file);
+      await w.addBuffer('modrinth.index.json', Buffer.from(JSON.stringify({ formatVersion: 1, game: 'minecraft', versionId: '1', name, files: [], dependencies: { minecraft: '1.20.1' } })));
+      for (const [n, t] of Object.entries(extra)) await w.addBuffer(n, Buffer.from(t));
+      await w.close();
+    };
+    const pub = path.join(game, 'saves', 'PackWorld', 'level.dat');
+    fs.mkdirSync(path.dirname(pub), { recursive: true });
+    fs.writeFileSync(pub, 'player-world');
+    try {
+      const f1 = path.join(root, 'with-world.mrpack');
+      await mk(f1, 'WithWorld', { 'overrides/saves/PackWorld/level.dat': 'pack-world', 'overrides/resourcepacks/pack.zip': 'rp', 'overrides/config/a.toml': 'x' });
+      const id1 = await modpack.installMrpack(f1, {}, task);
+      const d1 = core('versions').versionDir(id1);
+      const isolation = core('isolation');
+      check('整合包', '整合包自带的世界没有写进公共存档（玩家同名的世界原样在）', fs.readFileSync(pub, 'utf8') === 'player-world', fs.readFileSync(pub, 'utf8'));
+      check('整合包', '自带的世界、资源包留在整合包自己的文件夹里（不联到公共文件夹）', fs.readFileSync(path.join(d1, 'saves', 'PackWorld', 'level.dat'), 'utf8') === 'pack-world' && !(await isolation.isLink(path.join(d1, 'saves'))) && !(await isolation.isLink(path.join(d1, 'resourcepacks'))));
+      check('整合包', '整合包没带的（光影、截图）照选好的默认和公共文件夹共享', (await isolation.isLink(path.join(d1, 'shaderpacks'))) && (await isolation.isLink(path.join(d1, 'screenshots'))));
+      const f2 = path.join(root, 'plain.mrpack');
+      await mk(f2, 'Plain', { 'overrides/config/b.toml': 'y' });
+      const id2 = await modpack.installMrpack(f2, {}, task);
+      const d2 = core('versions').versionDir(id2);
+      check('整合包', '没带世界的整合包：存档照选好的默认和公共 .minecraft 共享', await isolation.isLink(path.join(d2, 'saves')));
+      // 装到一半失败：清掉半成品时不碰公共存档
+      const w3 = await ZipWriter.create(path.join(root, 'b3.mrpack'));
+      await w3.addBuffer('modrinth.index.json', Buffer.from(JSON.stringify({ formatVersion: 1, game: 'minecraft', versionId: '1', name: 'Fail', files: [{ path: 'mods/x.jar', downloads: ['http://127.0.0.1:1/x.jar'], hashes: { sha1: '0'.repeat(40) }, fileSize: 1 }], dependencies: { minecraft: '1.20.1' } })));
+      await w3.close();
+      const e3 = await modpack.installMrpack(path.join(root, 'b3.mrpack'), {}, task).then(() => null, (e) => e.message);
+      check('整合包', '装到一半失败：半成品清掉了，公共存档一点没动', !!e3 && fs.readFileSync(pub, 'utf8') === 'player-world' && fs.readdirSync(path.join(game, 'saves')).length === 1, { e3: e3 && e3.slice(0, 80), saves: fs.readdirSync(path.join(game, 'saves')) });
+    } finally { loaders.install = realInstall; config.set({ newProfileIsolation: 'isolated' }); }
+  },
+  // ── 备份：同一秒备份两次不撞名；恢复只认备份文件夹里的文件，备份包里的世界名不能跳出存档文件夹 ──
+  async 'backup-guards'() {
+    const { root } = setup('backup-guards');
+    const { makeWorld } = require('./game-kit');
+    const backup = core('backup');
+    const { ZipWriter } = core('zip');
+    const dir = await fakeVersion('BG');
+    core('config').setVersionSettings('BG', { isolation: 'on' });
+    await makeWorld(path.join(dir, 'saves'), 'W');
+    const both = await Promise.all([backup.create('BG', { type: 'saves' }), backup.create('BG', { type: 'saves' })]).then((r) => r.map((x) => x.file), (e) => [`出错：${e.message}`]);
+    const own = (await backup.list('BG')).own;
+    check('备份', '同一时刻备份两次：两个文件名字不同，都是完整的备份', both.length === 2 && both[0] !== both[1] && own.length === 2 && own.every((x) => !x.broken && JSON.stringify(x.worlds).includes('"W"')), { both, own: own.map((x) => x.name) });
+    // 备份文件夹外面的文件：不恢复
+    const outside = path.join(root, 'outside.zip');
+    fs.copyFileSync(both[0], outside);
+    const e1 = await backup.restore('BG', outside, { mode: 'new' }).then(() => null, (e) => e.message);
+    check('备份', '备份文件夹外面的文件不拿来恢复', /只能恢复备份文件夹里的文件/.test(e1 || ''), e1);
+    // 被改过的备份包：世界名是 ..（放到 saves 下面就是配置文件夹本身）
+    const evil = path.join(backup.dirOf('BG'), '20990101-000000-saves.zip');
+    const w = await ZipWriter.create(evil);
+    await w.addBuffer('saves/../level.dat', Buffer.from('evil'));
+    await w.addBuffer('aurora-backup.json', Buffer.from(JSON.stringify({ format: 1, profile: 'BG', type: 'saves', worlds: [{ name: '..', displayName: 'x' }], parts: ['saves'], dirs: [], files: [] })));
+    await w.close();
+    const before = await tree(dir);
+    const e2 = await backup.restore('BG', evil, { mode: 'overwrite' }).then(() => null, (e) => e.message);
+    const after = await tree(dir);
+    check('备份', '备份包里的世界名是 .. ：不恢复，配置文件夹里什么都没动', !!e2 && JSON.stringify(before) === JSON.stringify(after), { e2, added: after.filter((f) => !before.includes(f)).slice(0, 5) });
+  },
+  // ── 外置登录账户导出、导入（迁移到别的电脑）：以前导出时漏了认证服务器，导进来以后刷新、启动直接 TypeError ──
+  async 'ygg-export'() {
+    const { data } = setup('ygg-export');
+    const server = { name: '测试皮肤站', root: 'https://skin.invalid/api/yggdrasil', homepage: 'https://skin.invalid' };
+    await fsp.writeFile(path.join(data, 'accounts.json'), JSON.stringify({ selected: 'y1', accounts: [{ id: 'y1', type: 'yggdrasil', name: 'YggPlayer', uuid: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', server, addedAt: 1 }] }));
+    const accounts = core('auth/accounts');
+    const exported = accounts.exportList();
+    const ex = exported.accounts.find((x) => x.id === 'y1');
+    check('ygg', '导出的外置登录账户带着认证服务器（名字、地址），不带令牌', ex && ex.server && ex.server.root === server.root && ex.server.name === server.name && !/accessToken|enc:/.test(JSON.stringify(exported)), ex);
+    await accounts.remove('y1');
+    await accounts.importList(exported);
+    const back = accounts.raw().find((x) => x.id === 'y1');
+    check('ygg', '导进来以后认证服务器还在', back && back.server && back.server.root === server.root, back && back.server);
+    const why = (id) => accounts.refresh(id).then(() => 'ok', (e) => `${e.constructor.name}: ${e.message}`);
+    const r1 = await why('y1');
+    check('ygg', '导进来的账户刷新：提示重新登录这个皮肤站（不是程序错误）', /^Error: /.test(r1) && /测试皮肤站/.test(r1) && /登录/.test(r1), r1);
+    // 旧版本导出的数据里没有认证服务器
+    await accounts.importList({ selected: '', accounts: [{ id: 'y2', type: 'yggdrasil', name: 'OldYgg', uuid: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', addedAt: 2 }] });
+    const r2 = await why('y2');
+    check('ygg', '旧数据导进来、缺认证服务器的账户：说清楚要删掉重新添加，不是程序错误', /^Error: /.test(r2) && /缺少认证服务器/.test(r2) && /重新添加/.test(r2), r2);
+    const v2 = accounts.list().accounts.find((x) => x.id === 'y2');
+    check('ygg', '这个账户标成要重新登录，账户列表照常能列出来', v2 && v2.needRelogin === true, v2);
+  },
   async 'trash-inuse'() {
     const real = process.env.AURORA_REGRESS_REAL_TRASH === '1';
     const { root } = setup('trash-inuse');

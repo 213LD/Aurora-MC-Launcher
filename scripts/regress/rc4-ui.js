@@ -9,7 +9,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { start, BASE_CONFIG } = require('./robust-ui');
+const { start, BASE_CONFIG, lookShown } = require('./robust-ui');
 const { sleep, guard, ready, FIX_WORLD } = require('./cdp');
 
 const BASE = require('./editions').BASE;
@@ -196,7 +196,7 @@ async function functional() {
 
 const LOOKS = [
   ['极光-深', {}], ['像素-深', { ui: { style: 'pixel' }, theme: 'dark' }], ['紧凑-浅', { ui: { style: 'compact' }, theme: 'light' }],
-  ['极光-1.5倍', { a11y: { zoom: 1.5 } }], ['极光-高对比', { a11y: { contrast: 'high' } }], ['极光-英文', { language: 'en' }],
+  ['极光-1.5倍', { a11y: { zoom: 1.5 } }], ['极光-高对比', { a11y: { contrast: 'on' } }], ['极光-英文', { language: 'en' }],
 ];
 async function looks() {
   let n = 0;
@@ -204,6 +204,7 @@ async function looks() {
     const a = await start(`rc4-look-${n++}`, { prepare: ({ data }) => prepareLogs(data), config: (game) => ({ ...BASE_CONFIG(game), background: BG, logs: { keepDays: 0 }, ...cfg }) });
     if (a.startError) { check('外观', `${name}：能打开`, false, a.startError); continue; }
     await ready(a.ev);
+    { const lk = await lookShown(a, cfg); check('外观', `${name}：外观真的换上了`, !lk, lk); }
     const o = await a.ev(`(async () => { ${clean} await A.go('logs'); await new Promise((r) => setTimeout(r, 1500)); document.querySelector('.lc-item[data-log="20261110-120000-g1-aaaa"]').click(); await new Promise((r) => setTimeout(r, 1200));
       const main = document.querySelector('.lc-main').getBoundingClientRect(); const page = document.querySelector('#page-logs').getBoundingClientRect(); const over = [...document.querySelectorAll('.lc-head .btn, .lc-head input')].filter((b) => b.getBoundingClientRect().right > main.right + 1).length;
       return { over, inside: main.right <= page.right + 1, lines: document.querySelectorAll('.lc-log .log-line').length }; })()`, 30000);

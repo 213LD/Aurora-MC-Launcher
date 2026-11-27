@@ -8,11 +8,15 @@ const { request } = require('./net');
 const HOSTS = ['https://piston-meta.mojang.com/', 'https://bmclapi2.bangbang93.com/', 'https://api.modrinth.com/'];
 
 async function probe() {
-  const one = (url) => request(url, { method: 'HEAD', timeout: 5000 }).then(({ done }) => { done(); return true; });
+  // 有一个通了就够了：其余还在连的取消掉，不白占着连接
+  const ctrl = new AbortController();
+  const one = (url) => request(url, { method: 'HEAD', timeout: 5000, signal: ctrl.signal }).then(({ done }) => { done(); return true; });
   try {
     return await Promise.any(HOSTS.map(one));
   } catch {
     return false;
+  } finally {
+    ctrl.abort();
   }
 }
 

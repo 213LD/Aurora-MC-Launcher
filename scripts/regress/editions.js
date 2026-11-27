@@ -70,6 +70,16 @@ function oldSrcDir(base, tag) {
   return sha ? path.join(base, 'old-src', sha.slice(0, 12)) : null;
 }
 
+/** 把某个 tag 的 src 和 package.json 取到 dir：先 git archive 成一个 tar 文件，再用 tar 解开（不经过 bash 的管道，PowerShell 里也能跑；Windows 自带 tar） */
+function extractTag(tag, dir) {
+  fs.mkdirSync(dir, { recursive: true });
+  const tar = path.join(dir, '..', `${path.basename(dir)}.tar`);
+  try {
+    execFileSync('git', ['archive', '--format=tar', '-o', tar, tag, 'src', 'package.json'], { cwd: REPO, stdio: 'pipe', windowsHide: true });
+    execFileSync('tar', ['-xf', tar, '-C', dir], { stdio: 'pipe', windowsHide: true });
+  } finally { try { fs.unlinkSync(tar); } catch { /* 没建出来 */ } }
+}
+
 module.exports = {
   REPO,
   PUBLIC,
@@ -86,5 +96,6 @@ module.exports = {
   DISCLAIMER: require(path.join(REPO, 'src', 'main', 'disclaimer')).VERSION,
   oldTags,
   oldSrcDir,
+  extractTag,
   git,
 };

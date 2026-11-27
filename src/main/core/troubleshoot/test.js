@@ -112,6 +112,9 @@ async function testLaunch(versionId, task, { timeout = 240000, look = true, ask 
     return { ok: outcome.ok, warn, reason: outcome.reason, exitCode: outcome.exitCode, duration: Date.now() - started, gameId, issues, notices, screen: screen && { kind: screen.kind, image: screen.image, confirmed: !!screen.confirmed, remembered: remembered ? { answer: remembered.answer, at: remembered.at } : null } };
   } finally {
     task.signal.removeEventListener('abort', onAbort);
+    // 取消了、中途出错了：这一局是试启动开的，等它真的退出再往下走（下一步可能就要改 Mod 文件，游戏还占着就改不了）
+    const left = launcher.getGame(gameId);
+    if (left && left.state !== 'exited') { launcher.kill(gameId); await launcher.waitExit(gameId, 20000); }
     // 测试时跳过了原版辅助功能欢迎页：等游戏关掉再改回来（1.5.8）
     const g = launcher.getGame(gameId);
     if (g && g.onboardSkipped) {

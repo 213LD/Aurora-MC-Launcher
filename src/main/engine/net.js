@@ -26,14 +26,13 @@ async function request(url, opts = {}) {
   const { method = 'GET', headers = {}, body, json, timeout = 20000, signal } = opts;
   // 下载地址可能来自别人的整合包。net.fetch 也能读 file://，不限制的话能把电脑上的文件「下载」进游戏目录（2.0.0-pre8）
   if (!/^https?:\/\//i.test(String(url))) throw new Error(`不支持的下载地址：${String(url).slice(0, 60)}`);
+  // 已经取消了就别再起计时器（以前先起了计时器再抛错，计时器留着白跑到超时）
+  if (signal && signal.aborted) throw abortError();
   const ctrl = new AbortController();
   let timedOut = false;
   const timer = setTimeout(() => { timedOut = true; ctrl.abort(); }, timeout);
   const onAbort = () => ctrl.abort();
-  if (signal) {
-    if (signal.aborted) throw abortError();
-    signal.addEventListener('abort', onAbort, { once: true });
-  }
+  if (signal) signal.addEventListener('abort', onAbort, { once: true });
   const h = { 'User-Agent': UA(), ...headers };
   let payload = body;
   if (json !== undefined) {
@@ -53,6 +52,24 @@ async function request(url, opts = {}) {
   }
 }
 
+/** 边读边数：超过 max 字节就停下（不先把整个响应读进内存再看大小）。服务器先报了长度、已经超了的，一个字节都不读 */
+async function readCapped(res, max) {
+  const big = () => Object.assign(new Error(`文件太大了（超过 ${Math.round(max / 1048576)} MB）`), { tooBig: true });
+  if (Number(res.headers.get('content-length')) > max) { res.body && res.body.cancel().catch(() => {}); throw big(); } // pitfall-ok：只是关掉不要的连接，真正的错误是下面抛的「太大了」
+  if (!res.body) return Buffer.alloc(0);
+  const reader = res.body.getReader();
+  const chunks = [];
+  let n = 0;
+  for (;;) {
+    const { done: end, value } = await reader.read();
+    if (end) break;
+    n += value.length;
+    if (n > max) { reader.cancel().catch(() => {}); throw big(); } // pitfall-ok：同上
+    chunks.push(Buffer.from(value));
+  }
+  return Buffer.concat(chunks);
+}
+
 async function readBody(url, opts, kind) {
   const { res, done, isTimeout } = await request(url, opts);
   try {
@@ -62,10 +79,10 @@ async function readBody(url, opts, kind) {
       throw new HttpError(res.status, url, text);
     }
     if (kind === 'json') return await res.json();
-    if (kind === 'buffer') return Buffer.from(await res.arrayBuffer());
+    if (kind === 'buffer') return opts.maxBytes ? await readCapped(res, opts.maxBytes) : Buffer.from(await res.arrayBuffer());
     return await res.text();
   } catch (e) {
-    if (e instanceof HttpError) throw e;
+    if (e instanceof HttpError || e.tooBig) throw e;
     if (opts.signal && opts.signal.aborted) throw abortError();
     if (isTimeout()) throw new Error(`请求超时：${shortUrl(url)}`);
     throw e;
@@ -84,7 +101,7 @@ async function fetchAny(urls, opts = {}, kind = 'json') {
       try {
         return await readBody(url, opts, kind);
       } catch (e) {
-        if (e.cancelled) throw e;
+        if (e.cancelled || e.tooBig) throw e; // 太大了：换地址、重试都一样大
         lastErr = e;
         if (e instanceof HttpError && e.status >= 400 && e.status < 500 && e.status !== 429) break;
         await sleep(300 * (i + 1));

@@ -19,10 +19,10 @@ const versions = require('./versions');
 const profiles = require('./profiles');
 const isolation = require('./isolation');
 const gamelock = require('./gamelock');
-const { under, safeJoin, copyDir, replaceDir } = require('../engine/fileops');
+const { under, safeJoin, oneSegment, copyDir, replaceDir } = require('../engine/fileops');
 const nbt = require('../engine/nbt');
 const { ZipWriter, ZipReader } = require('../engine/zip');
-const { exists, safeTrash, renameRetry } = require('../engine/util');
+const { exists, safeTrash, renameRetry, capMap } = require('../engine/util');
 const { nm } = require('../../shared/i18n');
 
 const FORMAT = 1;
@@ -36,6 +36,7 @@ const SKIP_FILE = /(^|[\\/])session\.lock$/i;
 
 const safeId = (id) => String(id).slice(0, 200).replace(/[\\/:*?"<>|]/g, '_').replace(/^[. ]+$/, '_');
 const root = () => path.join(paths.dataDir(), 'backups');
+const making = new Set(); // 正在写的备份文件（还没改名成 .zip）
 const dirOf = (id) => path.join(root(), safeId(id));
 const norm = (p) => path.resolve(p).toLowerCase();
 const cancelled = () => Object.assign(new Error('已取消'), { cancelled: true });
@@ -174,9 +175,14 @@ async function create(id, opts = {}, task) {
   const dir = dirOf(id);
   await fsp.mkdir(dir, { recursive: true });
   let base = `${stamp()}-${opts.type}${opts.auto ? `-auto-${opts.auto}` : ''}`;
-  for (let i = 2; await exists(path.join(dir, `${base}.zip`)); i++) base = `${base.replace(/_\d+$/, '')}_${i}`;
+  // 同一秒里备份两次（自动备份撞上手动的）：名字要错开，别人正在写的也算占了这个名字。
+  // making 要在最后一次 await 之后、记下名字之前同步地查，两个备份才不会挑中同一个
+  const onDisk = async (b) => (await exists(path.join(dir, `${b}.zip`))) || exists(path.join(dir, `${b}.zip.part`));
+  for (let i = 2; (await onDisk(base)) || making.has(path.join(dir, `${base}.zip`)); i++) base = `${base.replace(/_\d+$/, '')}_${i}`;
   const file = path.join(dir, `${base}.zip`);
   const part = `${file}.part`;
+  making.add(file);
+  try {
 
   // 先数文件数，用来显示进度
   let total = 0;
@@ -232,6 +238,7 @@ async function create(id, opts = {}, task) {
     await fsp.rm(part, { force: true }).catch(() => {});
     throw e;
   }
+  } finally { making.delete(file); }
   await prune().catch(() => {});
   return entryOf(file);
 }
@@ -260,6 +267,7 @@ async function entryOf(file) {
     skipped: m.skipped || [], minecraft: m.minecraft, loader: m.loader, savesSource: m.savesSource || null, contentSize: m.size || 0,
   } : { file, name, size: st.size, createdAt: st.mtimeMs, broken: true, type: (name.match(/-(saves|settings|mods|full)/) || [])[1] || 'saves', auto, worlds: [], parts: [] };
   cache.set(file, { mtime: st.mtimeMs, entry });
+  capMap(cache, 2000); // 删掉的备份不会从这里出去：开着启动器很久、备份很多时不一直涨
   return entry;
 }
 
@@ -338,6 +346,7 @@ async function restore(id, file, opts = {}, task) {
   const ctx = await ctxOf(id);
   const b = await busy(ctx);
   if (b.game || b.saves) throw new Error('游戏正在运行。先关掉游戏再恢复');
+  insideRoot(file, true);
   const legacy = !/\.zip$/i.test(file);
   const entry = legacy ? await legacyEntry(file, null) : await entryOf(file);
   if (entry.broken) throw new Error('这个备份文件损坏了，读不出内容');
@@ -346,6 +355,8 @@ async function restore(id, file, opts = {}, task) {
   if (crossProfile || legacy) parts = parts.filter((p) => p === 'saves'); // 其他配置的备份只恢复存档
   const mode = opts.mode === 'new' ? 'new' : 'overwrite';
   const pick = Array.isArray(opts.worlds) ? entry.worlds.filter((w) => opts.worlds.includes(w.name)) : entry.worlds;
+  // 世界名来自备份包里的路径：坏的、被改过的包里可能是 ..，放到存档文件夹下面就跑到外面去了。动手之前先全部查一遍
+  for (const w of pick) oneSegment(path.basename(String(w.name || '')), '备份里的世界名');
   const doSaves = parts.includes('saves') && pick.length;
   const doSettings = parts.includes('settings') && entry.files.length;
   const dirsIn = entry.dirs.filter((d) => parts.includes(d === 'mods' ? 'mods' : 'dirs'));
@@ -420,8 +431,8 @@ async function undoRestore(id, { undo, created = [] } = {}, task) {
 }
 
 // ───────────────────────── 删除、清理、占用 ─────────────────────────
-function insideRoot(p) {
-  if (path.resolve(p) === path.resolve(root()) || !under(p, root())) throw new Error('只能删除备份文件夹里的文件');
+function insideRoot(p, forRestore = false) {
+  if (typeof p !== 'string' || !p || path.resolve(p) === path.resolve(root()) || !under(p, root())) throw new Error(forRestore ? '只能恢复备份文件夹里的文件' : '只能删除备份文件夹里的文件');
 }
 
 async function remove(file) {

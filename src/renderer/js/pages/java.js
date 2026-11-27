@@ -123,8 +123,10 @@
         h('div', { style: { flex: 1, minWidth: 0 } }, h('div', { style: { fontWeight: 600, fontSize: '13.5px' } }, r.name), h('div.faint.ellipsis', { style: { fontSize: '11.5px' } }, `${r.component} · ${r.version}`)),
         r.installed ? h('span.badge.ok', icon('check', 12), '已安装')
           : h('button.btn.sm', { disabled: installing, 'data-net': '', onclick: async (e) => {
-            e.currentTarget.disabled = true;
-            try { await api('java:installMojang', r.component); A.toast({ level: 'info', text: `开始下载 ${r.name}` }); } catch (err) { A.errorToast('无法下载', err); }
+            // 按钮要先记下来：await 之后 e.currentTarget 已经是 null，失败了没法把按钮放开
+            const b = e.currentTarget;
+            b.disabled = true;
+            try { await api('java:installMojang', r.component); A.toast({ level: 'info', text: `开始下载 ${r.name}` }); } catch (err) { b.disabled = false; A.errorToast('无法下载', err); }
           } }, icon('download', 14), installing ? '下载中' : '安装'));
     }));
   }

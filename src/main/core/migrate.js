@@ -621,8 +621,13 @@ async function apply(manifest, entries, choices, task) {
   }
 
   // 4. 启动器自己的数据
+  // 包里的设置文件坏了：别的照常导入，只是不导入设置（以前在这一步抛错，后面的账户、皮肤、方案都没导进来）
+  let cfgIn = null;
   if (sel.settings && special.config) {
-    const patch = sanitizeConfig(JSON.parse((await special.config.read()).toString('utf8')));
+    try { cfgIn = JSON.parse((await special.config.read()).toString('utf8')); } catch (e) { result.failedFiles.push(special.config.rel || 'config.json'); console.warn('[migrate] 设置文件读不出来', e.message); }
+  }
+  if (cfgIn && typeof cfgIn === 'object') {
+    const patch = sanitizeConfig(cfgIn);
     if (special.background && patch.background && patch.background.type === 'image') {
       const to = path.join(paths.dataDir(), `background-imported${path.extname(special.background.rel)}`);
       await special.background.copy(to).catch(() => null);

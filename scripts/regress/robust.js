@@ -311,6 +311,11 @@ const SCENARIOS = {
     const old = new Date(stamp);
     mk(path.join(v, 'P', 'P.json.123.1794000000000.1.tmp'), 'tmp'); fs.utimesSync(path.join(v, 'P', 'P.json.123.1794000000000.1.tmp'), old, old);
     mk(path.join(v, 'P', 'youngfile.json.123.1794000000000.2.tmp'), 'tmp');
+    // 备份写到一半崩了留下的 .zip.part：旧的清掉，刚写的（可能正在写）不动
+    const bdir = path.join(core('paths').dataDir(), 'backups', 'P');
+    mk(path.join(bdir, '20260101-000000-saves.zip.part'), 'half'); fs.utimesSync(path.join(bdir, '20260101-000000-saves.zip.part'), old, old);
+    mk(path.join(bdir, '20260101-000001-saves.zip.part'), 'writing');
+    mk(path.join(bdir, '20260101-000002-saves.zip'), 'done'); fs.utimesSync(path.join(bdir, '20260101-000002-saves.zip'), old, old);
     const r = await core('recover').run();
     await core('util').queuedDone();
     const read = (f) => { try { return fs.readFileSync(f, 'utf8'); } catch { return null; } };
@@ -337,6 +342,7 @@ const SCENARIOS = {
     check('恢复', '不认识的文件夹不碰', read(path.join(v, 'Weird', 'notes.json')) === '{"hello":1}');
     check('恢复', '别的 .aurora- 名字不碰', fs.existsSync(path.join(v, 'Keep', 'world.aurora-backup', 'x')));
     check('恢复', '旧的临时文件清掉，刚写的不动', !fs.existsSync(path.join(v, 'P', 'P.json.123.1794000000000.1.tmp')) && fs.existsSync(path.join(v, 'P', 'youngfile.json.123.1794000000000.2.tmp')));
+    check('恢复', '备份写到一半留下的 .zip.part：旧的清掉，刚写的和写好的备份不动', !fs.existsSync(path.join(bdir, '20260101-000000-saves.zip.part')) && fs.existsSync(path.join(bdir, '20260101-000001-saves.zip.part')) && fs.existsSync(path.join(bdir, '20260101-000002-saves.zip')), fs.readdirSync(bdir));
     const twice = await core('recover').run();
     check('恢复', '再跑一遍什么都不做', !twice.restored.length && !twice.renamed.length, twice);
     box.release();

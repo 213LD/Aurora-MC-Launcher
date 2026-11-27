@@ -149,6 +149,21 @@ async function setVariant(a, v) {
   await calm(a.ev);
 }
 
+/** 页面上显示的测试文件夹路径换成固定的一串再量：路径长短随测试放在哪个文件夹变（别的 agent 用自己的目录、公开版用 aurora-regress-public），
+ *  向导里那段带路径的说明会多折一行，快照就报出和改动无关的差别 */
+const SAME_PATHS = (root) => `(() => {
+  const roots = ${JSON.stringify([root, root.split(path.sep).join('/')].map((r) => r.toLowerCase()))};
+  const fixed = ${JSON.stringify('C:\\AuroraTest')};
+  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let n = w.nextNode(); n; n = w.nextNode()) {
+    let t = n.nodeValue;
+    for (const r of roots) for (let i = t.toLowerCase().indexOf(r); i >= 0; i = t.toLowerCase().indexOf(r)) t = t.slice(0, i) + fixed + t.slice(i + r.length);
+    if (t !== n.nodeValue) n.nodeValue = t;
+  }
+  return 1;
+})()`;
+const collect = async (a, code = COLLECT) => { if (a.root) await a.ev(SAME_PATHS(a.root)); return a.ev(code); };
+
 /** 量一批弹窗：挨个打开、等它不再变、量、拿掉 */
 async function captureDialogs(a, list, views) {
   for (const [id, , open, opt] of list) {
@@ -156,7 +171,7 @@ async function captureDialogs(a, list, views) {
     await a.ev(CLOSE_ALL);
     const err = await a.ev(`(async () => { try { ${open}; return ''; } catch (e) { return String(e.message || e); } })()`);
     await settle(a, DIALOG_ROOT);
-    views[`dialog:${id}`] = (err ? null : await a.ev(COLLECT.replace("document.querySelector('.page.active')", DIALOG_ROOT))) || { entries: [], boxes: {}, problems: [`这个弹窗没有打开${err ? `（${err}）` : ''}`] };
+    views[`dialog:${id}`] = (err ? null : await collect(a, COLLECT.replace("document.querySelector('.page.active')", DIALOG_ROOT))) || { entries: [], boxes: {}, problems: [`这个弹窗没有打开${err ? `（${err}）` : ''}`] };
   }
   await a.ev(CLOSE_ALL);
 }
@@ -170,7 +185,7 @@ async function capture(a) {
     const views = {};
     for (const view of VIEWS) {
       await openView(a, view);
-      views[view] = (await a.ev(COLLECT)) || { entries: [], boxes: {}, problems: ['这一页没有显示出来'] };
+      views[view] = (await collect(a)) || { entries: [], boxes: {}, problems: ['这一页没有显示出来'] };
     }
     if (v.dialogs) await captureDialogs(a, DIALOGS.filter((d) => !isOnline(d)), views);
     snap.variants[v.id] = { nav: g.nav, bar: g.bar, views };
@@ -309,11 +324,6 @@ async function selfTest(a, good) {
   await ready(a.ev);
   const snap = await capture(a);
   check('界面快照', '每个页面都进得去，没有页面错误', a.errors.length === 0, a.errors.slice(0, 5));
-  for (const v of VARIANTS) {
-    const bad = [];
-    for (const view of KEYS) for (const p of (snap.variants[v.id].views[view] || { problems: [] }).problems) bad.push(`${VIEW_NAME[view] || view}：${p}`);
-    check('界面快照', `${v.name}：没有溢出、截断、叠在一起、没居中、看不见的字`, bad.length === 0, bad.slice(0, 12));
-  }
   await selfTest(a, snap);
   await a.stop();
   // 要联网的弹窗：第二个窗口，网络用固定的数据顶替
@@ -323,6 +333,12 @@ async function selfTest(a, good) {
   await captureOnline(b, snap);
   check('界面快照', '要联网的弹窗（新建配置、安装版本、怀旧版本）也打得开，没有页面错误', b.errors.length === 0, b.errors.slice(0, 5));
   await b.stop();
+  // 每一页、每个弹窗量出来的毛病（要联网的弹窗是上面第二个窗口量的，以前在它之前就查完了，那几个弹窗的毛病从来没算过）
+  for (const v of VARIANTS) {
+    const bad = [];
+    for (const [view, got] of Object.entries(snap.variants[v.id].views)) for (const p of (got && got.problems) || []) bad.push(`${VIEW_NAME[view] || view}：${p}`);
+    check('界面快照', `${v.name}：没有溢出、截断、叠在一起、没居中、看不见的字`, bad.length === 0, bad.slice(0, 12));
+  }
   const pretty = () => `${JSON.stringify(snap, null, 1).replace(/\[\n\s+(-?[\d.]+),\n\s+(-?[\d.]+),\n\s+(-?[\d.]+),\n\s+(-?[\d.]+)(?:,\n\s+(-?[\d.]+),\n\s+(-?[\d.]+))?\n\s+\]/g, (m, x, y, w, h, dx, dy) => `[${[x, y, w, h].concat(dx === undefined ? [] : [dx, dy]).join(', ')}]`)}\n`;
   if (!fs.existsSync(FILE)) {
     if (UPDATE) { fs.writeFileSync(FILE, pretty(), 'utf8'); check('界面快照', '第一次：存下基线', true, FILE); } else check('界面快照', '还没有基线（先跑一次 --update）', false, FILE);

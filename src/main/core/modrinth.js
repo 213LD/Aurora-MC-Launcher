@@ -5,6 +5,7 @@
  */
 const { getJson, postJson } = require('../engine/net');
 const { pool, capMap } = require('../engine/util');
+const { fileNameOnly } = require('../engine/fileops');
 
 const API = 'https://api.modrinth.com/v2';
 const TTL = 10 * 60 * 1000;
@@ -59,7 +60,8 @@ function mapVersion(v) {
     loaders: v.loaders || [],
     gameVersions: v.game_versions || [],
     dependencies: (v.dependencies || []).map((d) => ({ projectId: d.project_id, versionId: d.version_id, fileName: d.file_name, type: d.dependency_type })),
-    files: (v.files || []).map((f) => ({ url: f.url, filename: f.filename, size: f.size, sha1: f.hashes && f.hashes.sha1, sha512: f.hashes && f.hashes.sha512, primary: f.primary })),
+    // 文件名来自网络接口：只留最后一段（拼进 mods 文件夹的路径时不能带 ..\ 跑出去）
+    files: (v.files || []).map((f) => ({ url: f.url, filename: fileNameOnly(f.filename, 'mod.jar'), size: f.size, sha1: f.hashes && f.hashes.sha1, sha512: f.hashes && f.hashes.sha512, primary: f.primary })),
   };
 }
 

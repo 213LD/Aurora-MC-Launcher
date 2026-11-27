@@ -9,7 +9,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync, execFileSync } = require('child_process');
-const { start, BASE_CONFIG, fakeVersion } = require('./robust-ui');
+const { start, BASE_CONFIG, fakeVersion, lookShown } = require('./robust-ui');
 const { sleep, until, calm, waitFor } = require('./cdp');
 
 const REPO = path.resolve(__dirname, '..', '..');
@@ -96,7 +96,7 @@ const SCENARIOS = {
     // 各种风格都要看得清（UI 改动的规矩）
     const looks = [
       ['像素-深', { ui: { style: 'pixel' }, theme: 'dark' }], ['紧凑-深', { ui: { style: 'compact' }, theme: 'dark' }], ['极光-浅', { theme: 'light' }], ['像素-浅', { ui: { style: 'pixel' }, theme: 'light' }], ['紧凑-浅', { ui: { style: 'compact' }, theme: 'light' }],
-      ['极光-1.5倍', { a11y: { zoom: 1.5 } }], ['极光-高对比', { a11y: { contrast: 'high' } }], ['极光-英文', { language: 'en' }],
+      ['极光-1.5倍', { a11y: { zoom: 1.5 } }], ['极光-高对比', { a11y: { contrast: 'on' } }], ['极光-英文', { language: 'en' }],
     ];
     let n = 0;
     const over = [];
@@ -104,6 +104,8 @@ const SCENARIOS = {
       const b = await start(`foreign-look-${n++}`, { prepare: prepareHome, config: (game) => ({ ...BASE_CONFIG(game), ...cfg }) });
       if (b.startError) { over.push(`${name}: ${b.startError}`); continue; }
       await b.ev('document.querySelectorAll(".modal-back").forEach((m) => m.remove()); 1');
+      const lk = await lookShown(b, cfg);
+      if (lk) over.push(`${name}: ${lk}`);
       await openList(b);
       await clickText(b, '2 ', '.modal-back .mg-cand');
       await calm(b.ev);

@@ -140,9 +140,9 @@ async function resolveHalfPack(id, action) {
 // 这次运行里正在装的整合包（modpack.js 记），不能问玩家要不要删
 const installingHere = new Set();
 
-async function sweepTemp(dir, maxAge, out) {
+async function sweepTemp(dir, maxAge, out, re = TMP_FILE) {
   for (const n of await readNames(dir)) {
-    if (!TMP_FILE.test(n)) continue;
+    if (!re.test(n)) continue;
     const p = path.join(dir, n);
     const st = await fsp.stat(p).catch(() => null);
     if (st && st.isFile() && Date.now() - st.mtimeMs >= maxAge) {
@@ -187,6 +187,9 @@ async function run({ maxAge = 10 * ONE_MINUTE } = {}) {
   }
   await step(() => sweepTemp(paths.dataDir(), maxAge, out));
   await step(() => sweepTemp(path.join(paths.dataDir(), 'skins', 'library'), maxAge, out));
+  // 备份写到一半崩了留下的 *.zip.part（正常结束时会改名成 .zip 或删掉）
+  const broot = path.join(paths.dataDir(), 'backups');
+  for (const id of await readNames(broot)) await step(() => sweepTemp(path.join(broot, id), maxAge, out, /\.zip\.part$/i));
   if (out.restored.length || out.renamed.length) console.warn('[recover] 上次没做完的已经收拾好', JSON.stringify(out));
   return out;
 }

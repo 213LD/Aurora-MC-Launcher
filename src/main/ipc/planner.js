@@ -15,8 +15,10 @@ function register() {
   handle('planner:styles', () => planner.styles());
   handle('planner:recommend', (p) => planner.recommend(p || {}));
   handle('planner:resolve', (p) => planner.resolve(p || {}));
-  handle('planner:install', (params) => {
+  handle('planner:install', async (params) => {
     const name = params.target.mode === 'existing' ? params.target.versionId : params.target.name;
+    // 装进已有的配置：和「修改配置」一样，它的游戏开着时不动它的 Mod
+    if (params.target.mode === 'existing') await assertModsFree(name, '安装方案');
     return startTask(`安装${t('term.plan')} ${nm(params.plan.name) || nm(name)}`, { kind: 'install', lock: name, meta: { name, planId: params.plan.id }, doneText: '安装完成', failTitle: `安装${t('term.plan')}失败` },
       async (task) => {
         const r = await planner.install(params, task);

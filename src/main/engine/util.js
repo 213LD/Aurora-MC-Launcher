@@ -44,7 +44,8 @@ async function renameRetry(from, to, tries = 8) {
   }
 }
 
-// 同一个文件的写入排队：按调用顺序落盘，最后一次调用的内容生效（1.10.7：以前并发写会撞上同名临时文件）
+// 同一个文件的写入排队：按调用顺序落盘，最后一次调用的内容生效（1.10.7：以前并发写会撞上同名临时文件）。
+// writeJson 和 fileops.writeFileSafe 共用这一个队列：同一个文件不管用哪个写，都排在一起
 const writeQueues = new Map();
 let tmpSeq = 0;
 const inFlight = new Set();
@@ -273,7 +274,7 @@ function totalMemMB() { return Math.floor(os.totalmem() / 1048576); }
 function freeMemMB() { return Math.floor(os.freemem() / 1048576); }
 
 module.exports = { writeSynced, capMap, clipLog,
-  isWin, exists, readJson, readJsonSync, writeJson, renameRetry, queued, queuedDone, fileKey, hashFile, parseMaven, mavenPath,
+  isWin, exists, readJson, readJsonSync, writeJson, renameRetry, queued, queuedDone, fileKey, writeQueues, hashFile, parseMaven, mavenPath,
   osName, normArch, systemArch, splitArgs, sleep, abortError, throwIfAborted, pool, rmrf, safeTrash, inUse, inUseError,
   copyIfMissing, totalMemMB, freeMemMB,
 };

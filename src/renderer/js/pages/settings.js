@@ -423,8 +423,13 @@
         volRow('音效音量', snd.volume ?? 0.45, 'sound')), { id: 'set-music' });
     G.ms = group('微软登录', 'shield',
         A.FEATURES.msLogin
-          ? row('Azure 应用 Client ID', '已内置通过审核的应用，留空即使用默认；也可以填写自定义 Client ID', h('div.input-group',
-            h('input.input.mono', { value: c.msClientId, placeholder: '留空使用内置默认', style: { width: '300px', fontSize: '12px' }, spellcheck: 'false', onchange: (e) => set({ msClientId: e.target.value.trim() }) }),
+          ? row('自定义 Client ID（一般不用填）', '启动器已内置通过微软审核的应用，直接就能登录。只有想用自己申请的 Azure 应用时才填这里', h('div.input-group',
+            h('input.input.mono', { value: c.msClientId, placeholder: '留空使用内置默认', style: { width: '300px', fontSize: '12px' }, spellcheck: 'false', onchange: (e) => {
+              const v = e.target.value.trim();
+              // 格式不对就不存，退回原来的（以前什么都收，登录时才报一个看不懂的错）
+              if (v && !window.WEBURL.isClientId(v)) { A.toast({ level: 'warn', text: 'Client ID 格式不正确：应该是「应用程序(客户端) ID」那一串，形如 xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx' }); e.target.value = state.config.msClientId || ''; return; }
+              set({ msClientId: v });
+            } }),
             h('button.btn.sm.ghost.icon', { 'data-tip': '配置说明', onclick: () => A.clientIdDialog() }, icon('info', 16))))
           : row('微软正版登录', '正在向微软申请，通过审核后开放；现在请先使用离线账户或外置登录', h('span.soon-tag.lg', { 'data-tip': A.MS_PENDING }, '正在申请')));
     G.about = group('关于', 'info',

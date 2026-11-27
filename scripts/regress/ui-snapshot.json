@@ -82,6 +82,7 @@
     "versions": {
      "entries": [
       "按钮「Mod 管理」",
+      "按钮「Plain Minecraft Plain 纯净版 缺少 Java # 公共目录 尚未游玩 启动」",
       "按钮「一键 Debug」",
       "按钮「从其他启动器导入」",
       "按钮「公共目录」",
@@ -90,6 +91,7 @@
       "按钮「存档与备份」 ×2",
       "按钮「导入整合包」",
       "按钮「导出数据」",
+      "按钮「当前 Fab Minecraft # · Fabric # 自定义 Mod Fabric # 个」",
       "按钮「打开 mods 文件夹」",
       "按钮「打开版本文件夹」",
       "按钮「新建配置」",
@@ -206,6 +208,7 @@
     "download": {
      "entries": [
       "按钮「Mod 管理」",
+      "按钮「Plain Minecraft Plain 纯净版 缺少 Java # 公共目录 尚未游玩 启动」",
       "按钮「一键 Debug」",
       "按钮「从其他启动器导入」",
       "按钮「公共目录」",
@@ -214,6 +217,7 @@
       "按钮「存档与备份」 ×2",
       "按钮「导入整合包」",
       "按钮「导出数据」",
+      "按钮「当前 Fab Minecraft # · Fabric # 自定义 Mod Fabric # 个」",
       "按钮「打开 mods 文件夹」",
       "按钮「打开版本文件夹」",
       "按钮「新建配置」",
@@ -985,7 +989,7 @@
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#2/div.set-row#5": "音效 主页背景里的声音：点方块、生物叫、下雨打雷等。从你装好",
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#2/div.set-row#6": "音效音量 #%",
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3/h3": "微软登录",
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3/div.set-row": "Azure 应用 Client ID 已内置通过审核的应用，"
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3/div.set-row": "自定义 Client ID（一般不用填） 启动器已内置通过微"
      },
      "problems": []
     },
@@ -2079,9 +2083,9 @@
       "/div.modal-head/button.btn": [672, 16, 30, 30, 0, 0],
       "/div.modal-body": [1, 109, 718, 382],
       "/div.modal-body/div.setup": [24, 14, 670, 360],
-      "/div.modal-body/div.setup/button.choice": [0, 35, 670, 93, 0, 0],
+      "/div.modal-body/div.setup/button.choice": [0, 35, 670, 72, 0, 0],
       "/div.modal-body/div.setup/button.choice/span.ch-ico": [15, 15, 36, 36],
-      "/div.modal-body/div.setup/button.choice/span.ch-body": [63, 15, 592, 63],
+      "/div.modal-body/div.setup/button.choice/span.ch-body": [63, 15, 592, 42],
       "/div.modal-foot": [1, 491, 718, 70],
       "/div.modal-foot/button.btn": [24, 14, 59, 36, 0, 0],
       "/div.modal-foot/button.btn#2": [541, 14, 73, 36, 0, 0],
@@ -2773,6 +2777,7 @@
     "versions": {
      "entries": [
       "按钮「Mod 管理」",
+      "按钮「Plain Minecraft Plain 纯净版 缺少 Java # 公共目录 尚未游玩 启动」",
       "按钮「一键 Debug」",
       "按钮「从其他启动器导入」",
       "按钮「公共目录」",
@@ -2781,6 +2786,7 @@
       "按钮「存档与备份」 ×2",
       "按钮「导入整合包」",
       "按钮「导出数据」",
+      "按钮「当前 Fab Minecraft # · Fabric # 自定义 Mod Fabric # 个」",
       "按钮「打开 mods 文件夹」",
       "按钮「打开版本文件夹」",
       "按钮「新建配置」",
@@ -2897,6 +2903,7 @@
     "download": {
      "entries": [
       "按钮「Mod 管理」",
+      "按钮「Plain Minecraft Plain 纯净版 缺少 Java # 公共目录 尚未游玩 启动」",
       "按钮「一键 Debug」",
       "按钮「从其他启动器导入」",
       "按钮「公共目录」",
@@ -2905,6 +2912,7 @@
       "按钮「存档与备份」 ×2",
       "按钮「导入整合包」",
       "按钮「导出数据」",
+      "按钮「当前 Fab Minecraft # · Fabric # 自定义 Mod Fabric # 个」",
       "按钮「打开 mods 文件夹」",
       "按钮「打开版本文件夹」",
       "按钮「新建配置」",
@@ -3675,7 +3683,7 @@
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#2/div.set-row#5": "音效 主页背景里的声音：点方块、生物叫、下雨打雷等。从你装好",
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#2/div.set-row#6": "音效音量 #%",
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3/h3": "微软登录",
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3/div.set-row": "Azure 应用 Client ID 已内置通过审核的应用，"
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3/div.set-row": "自定义 Client ID（一般不用填） 启动器已内置通过微"
      },
      "problems": []
     },
@@ -4098,10 +4106,10 @@
       "输入框「搜索设置」"
      ],
      "boxes": {
-      "/div.page-inner": [36, 56, 842, 788],
+      "/div.page-inner": [36, 56, 842, 806],
       "/div.page-inner/div.page-head": [0, 6, 842, 65],
       "/div.page-inner/div.page-head/div": [0, 0, 311, 65],
-      "/div.page-inner/div.set-layout": [0, 93, 842, 695],
+      "/div.page-inner/div.set-layout": [0, 93, 842, 714],
       "/div.page-inner/div.set-layout/nav.set-nav": [0, 0, 196, 332],
       "/div.page-inner/div.set-layout/nav.set-nav/input.input": [0, 0, 196, 38],
       "/div.page-inner/div.set-layout/nav.set-nav/div.set-cats": [0, 48, 196, 284],
@@ -4112,16 +4120,16 @@
       "/div.page-inner/div.set-layout/nav.set-nav/div.set-cats/button.set-cat#5": [0, 164, 196, 38, -59, 0],
       "/div.page-inner/div.set-layout/nav.set-nav/div.set-cats/button.set-cat#6": [0, 205, 196, 38, -52, 0],
       "/div.page-inner/div.set-layout/nav.set-nav/div.set-cats/button.set-cat#7": [0, 246, 196, 38, -59, 0],
-      "/div.page-inner/div.set-layout/div.set-panes": [218, 0, 624, 695],
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane": [0, 2, 624, 675],
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card": [0, 39, 624, 636],
+      "/div.page-inner/div.set-layout/div.set-panes": [218, 0, 624, 714],
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane": [0, 2, 624, 694],
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card": [0, 39, 624, 655],
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/h3": [1, 1, 622, 40],
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row": [1, 41, 622, 68],
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#2": [1, 108, 622, 233],
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#3": [1, 341, 622, 69],
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#4": [1, 410, 622, 88],
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#5": [1, 497, 622, 69],
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#6": [1, 566, 622, 69]
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#2": [1, 108, 622, 252],
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#3": [1, 360, 622, 69],
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#4": [1, 429, 622, 88],
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#5": [1, 516, 622, 69],
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#6": [1, 585, 622, 69]
      },
      "texts": {
       "/div.page-inner/div.page-head": "设置 全局设置对所有版本生效，可在版本设置中单独覆盖",
@@ -4765,9 +4773,9 @@
       "/div.modal-head/button.btn": [672, 16, 30, 30, 0, 0],
       "/div.modal-body": [1, 109, 718, 382],
       "/div.modal-body/div.setup": [24, 14, 670, 360],
-      "/div.modal-body/div.setup/button.choice": [0, 35, 670, 93, 0, 0],
+      "/div.modal-body/div.setup/button.choice": [0, 35, 670, 72, 0, 0],
       "/div.modal-body/div.setup/button.choice/span.ch-ico": [15, 15, 36, 36],
-      "/div.modal-body/div.setup/button.choice/span.ch-body": [63, 15, 592, 63],
+      "/div.modal-body/div.setup/button.choice/span.ch-body": [63, 15, 592, 42],
       "/div.modal-foot": [1, 491, 718, 70],
       "/div.modal-foot/button.btn": [24, 14, 59, 36, 0, 0],
       "/div.modal-foot/button.btn#2": [541, 14, 73, 36, 0, 0],
@@ -5462,6 +5470,7 @@
     "versions": {
      "entries": [
       "按钮「Mod 管理」",
+      "按钮「Plain Minecraft Plain 纯净版 缺少 Java # 公共目录 尚未游玩 启动」",
       "按钮「一键 Debug」",
       "按钮「从其他启动器导入」",
       "按钮「公共目录」",
@@ -5470,6 +5479,7 @@
       "按钮「存档与备份」 ×2",
       "按钮「导入整合包」",
       "按钮「导出数据」",
+      "按钮「当前 Fab Minecraft # · Fabric # 自定义 Mod Fabric # 个」",
       "按钮「打开 mods 文件夹」",
       "按钮「打开版本文件夹」",
       "按钮「新建配置」",
@@ -5586,6 +5596,7 @@
     "download": {
      "entries": [
       "按钮「Mod 管理」",
+      "按钮「Plain Minecraft Plain 纯净版 缺少 Java # 公共目录 尚未游玩 启动」",
       "按钮「一键 Debug」",
       "按钮「从其他启动器导入」",
       "按钮「公共目录」",
@@ -5594,6 +5605,7 @@
       "按钮「存档与备份」 ×2",
       "按钮「导入整合包」",
       "按钮「导出数据」",
+      "按钮「当前 Fab Minecraft # · Fabric # 自定义 Mod Fabric # 个」",
       "按钮「打开 mods 文件夹」",
       "按钮「打开版本文件夹」",
       "按钮「新建配置」",
@@ -6365,7 +6377,7 @@
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#2/div.set-row#5": "音效 主页背景里的声音：点方块、生物叫、下雨打雷等。从你装好",
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#2/div.set-row#6": "音效音量 #%",
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3/h3": "微软登录",
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3/div.set-row": "Azure 应用 Client ID 已内置通过审核的应用，"
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3/div.set-row": "自定义 Client ID（一般不用填） 启动器已内置通过微"
      },
      "problems": []
     },
@@ -6915,6 +6927,7 @@
     "versions": {
      "entries": [
       "按钮「Mod 管理」",
+      "按钮「Plain Minecraft Plain 纯净版 缺少 Java # 公共目录 尚未游玩 启动」",
       "按钮「一键 Debug」",
       "按钮「从其他启动器导入」",
       "按钮「公共目录」",
@@ -6923,6 +6936,7 @@
       "按钮「存档与备份」 ×2",
       "按钮「导入整合包」",
       "按钮「导出数据」",
+      "按钮「当前 Fab Minecraft # · Fabric # 自定义 Mod Fabric # 个」",
       "按钮「打开 mods 文件夹」",
       "按钮「打开版本文件夹」",
       "按钮「新建配置」",
@@ -7039,6 +7053,7 @@
     "download": {
      "entries": [
       "按钮「Mod 管理」",
+      "按钮「Plain Minecraft Plain 纯净版 缺少 Java # 公共目录 尚未游玩 启动」",
       "按钮「一键 Debug」",
       "按钮「从其他启动器导入」",
       "按钮「公共目录」",
@@ -7047,6 +7062,7 @@
       "按钮「存档与备份」 ×2",
       "按钮「导入整合包」",
       "按钮「导出数据」",
+      "按钮「当前 Fab Minecraft # · Fabric # 自定义 Mod Fabric # 个」",
       "按钮「打开 mods 文件夹」",
       "按钮「打开版本文件夹」",
       "按钮「新建配置」",
@@ -7756,10 +7772,10 @@
       "输入框「（没有文字）」 ×2"
      ],
      "boxes": {
-      "/div.page-inner": [36, 104, 1118, 1299],
+      "/div.page-inner": [36, 104, 1118, 1319],
       "/div.page-inner/div.page-head": [0, 6, 1118, 64],
       "/div.page-inner/div.page-head/div": [0, 0, 311, 64],
-      "/div.page-inner/div.set-layout": [0, 92, 1118, 1207],
+      "/div.page-inner/div.set-layout": [0, 92, 1118, 1227],
       "/div.page-inner/div.set-layout/nav.set-nav": [0, 0, 196, 332],
       "/div.page-inner/div.set-layout/nav.set-nav/input.input": [0, 0, 196, 38],
       "/div.page-inner/div.set-layout/nav.set-nav/div.set-cats": [0, 48, 196, 284],
@@ -7770,8 +7786,8 @@
       "/div.page-inner/div.set-layout/nav.set-nav/div.set-cats/button.set-cat#5": [0, 164, 196, 38, -59, 0],
       "/div.page-inner/div.set-layout/nav.set-nav/div.set-cats/button.set-cat#6": [0, 205, 196, 38, -53, 0],
       "/div.page-inner/div.set-layout/nav.set-nav/div.set-cats/button.set-cat#7": [0, 246, 196, 38, -59, 0],
-      "/div.page-inner/div.set-layout/div.set-panes": [218, 0, 900, 1207],
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane": [0, 2, 900, 1187],
+      "/div.page-inner/div.set-layout/div.set-panes": [218, 0, 900, 1227],
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane": [0, 2, 900, 1207],
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card": [0, 41, 900, 546],
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/h3": [2, 2, 896, 41],
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row": [2, 43, 896, 70],
@@ -7789,9 +7805,9 @@
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#2/div.set-row#4": [2, 245, 896, 71],
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#2/div.set-row#5": [2, 316, 896, 71],
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#2/div.set-row#6": [2, 387, 896, 60],
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3": [0, 1072, 900, 115],
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3": [0, 1072, 900, 135],
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3/h3": [2, 2, 896, 41],
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3/div.set-row": [2, 43, 896, 70]
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3/div.set-row": [2, 43, 896, 90]
      },
      "texts": {
       "/div.page-inner/div.page-head": "设置 全局设置对所有版本生效，可在版本设置中单独覆盖",
@@ -7818,9 +7834,8 @@
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#2/div.set-row#4": "曲目与 MIDI 切换曲目、单曲循环，或把曲谱导出为 MID",
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#2/div.set-row#5": "音效 主页背景里的声音：点方块、生物叫、下雨打雷等。从你装好",
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#2/div.set-row#6": "音效音量 #%",
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3": "微软登录 Azure 应用 Client ID 已内置通过审",
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3/h3": "微软登录",
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3/div.set-row": "Azure 应用 Client ID 已内置通过审核的应用，"
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3/div.set-row": "自定义 Client ID（一般不用填） 启动器已内置通过微"
      },
      "problems": []
     },
@@ -8246,10 +8261,10 @@
       "输入框「搜索设置」"
      ],
      "boxes": {
-      "/div.page-inner": [36, 104, 1118, 719],
+      "/div.page-inner": [36, 104, 1118, 739],
       "/div.page-inner/div.page-head": [0, 6, 1118, 64],
       "/div.page-inner/div.page-head/div": [0, 0, 311, 64],
-      "/div.page-inner/div.set-layout": [0, 92, 1118, 627],
+      "/div.page-inner/div.set-layout": [0, 92, 1118, 647],
       "/div.page-inner/div.set-layout/nav.set-nav": [0, 0, 196, 332],
       "/div.page-inner/div.set-layout/nav.set-nav/input.input": [0, 0, 196, 38],
       "/div.page-inner/div.set-layout/nav.set-nav/div.set-cats": [0, 48, 196, 284],
@@ -8260,16 +8275,16 @@
       "/div.page-inner/div.set-layout/nav.set-nav/div.set-cats/button.set-cat#5": [0, 164, 196, 38, -59, 0],
       "/div.page-inner/div.set-layout/nav.set-nav/div.set-cats/button.set-cat#6": [0, 205, 196, 38, -53, 0],
       "/div.page-inner/div.set-layout/nav.set-nav/div.set-cats/button.set-cat#7": [0, 246, 196, 38, -59, 0],
-      "/div.page-inner/div.set-layout/div.set-panes": [218, 0, 900, 627],
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane": [0, 2, 900, 607],
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card": [0, 41, 900, 566],
+      "/div.page-inner/div.set-layout/div.set-panes": [218, 0, 900, 647],
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane": [0, 2, 900, 627],
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card": [0, 41, 900, 586],
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/h3": [2, 2, 896, 41],
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row": [2, 43, 896, 70],
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#2": [2, 113, 896, 165],
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#3": [2, 279, 896, 71],
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#4": [2, 350, 896, 71],
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#5": [2, 421, 896, 71],
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#6": [2, 493, 896, 71]
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#2": [2, 113, 896, 185],
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#3": [2, 299, 896, 71],
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#4": [2, 370, 896, 71],
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#5": [2, 441, 896, 71],
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#6": [2, 513, 896, 71]
      },
      "texts": {
       "/div.page-inner/div.page-head": "设置 全局设置对所有版本生效，可在版本设置中单独覆盖",
@@ -8373,6 +8388,7 @@
     "versions": {
      "entries": [
       "按钮「Mod 管理」",
+      "按钮「Plain Minecraft Plain 纯净版 缺少 Java # 公共目录 尚未游玩 启动」",
       "按钮「一键 Debug」",
       "按钮「从其他启动器导入」",
       "按钮「公共目录」",
@@ -8381,6 +8397,7 @@
       "按钮「存档与备份」 ×2",
       "按钮「导入整合包」",
       "按钮「导出数据」",
+      "按钮「当前 Fab Minecraft # · Fabric # 自定义 Mod Fabric # 个」",
       "按钮「打开 mods 文件夹」",
       "按钮「打开版本文件夹」",
       "按钮「新建配置」",
@@ -8497,6 +8514,7 @@
     "download": {
      "entries": [
       "按钮「Mod 管理」",
+      "按钮「Plain Minecraft Plain 纯净版 缺少 Java # 公共目录 尚未游玩 启动」",
       "按钮「一键 Debug」",
       "按钮「从其他启动器导入」",
       "按钮「公共目录」",
@@ -8505,6 +8523,7 @@
       "按钮「存档与备份」 ×2",
       "按钮「导入整合包」",
       "按钮「导出数据」",
+      "按钮「当前 Fab Minecraft # · Fabric # 自定义 Mod Fabric # 个」",
       "按钮「打开 mods 文件夹」",
       "按钮「打开版本文件夹」",
       "按钮「新建配置」",
@@ -9214,10 +9233,10 @@
       "输入框「（没有文字）」 ×2"
      ],
      "boxes": {
-      "/div.page-inner": [36, 104, 1118, 1299],
+      "/div.page-inner": [36, 104, 1118, 1319],
       "/div.page-inner/div.page-head": [0, 6, 1118, 64],
       "/div.page-inner/div.page-head/div": [0, 0, 311, 64],
-      "/div.page-inner/div.set-layout": [0, 92, 1118, 1207],
+      "/div.page-inner/div.set-layout": [0, 92, 1118, 1227],
       "/div.page-inner/div.set-layout/nav.set-nav": [0, 0, 196, 332],
       "/div.page-inner/div.set-layout/nav.set-nav/input.input": [0, 0, 196, 38],
       "/div.page-inner/div.set-layout/nav.set-nav/div.set-cats": [0, 48, 196, 284],
@@ -9228,8 +9247,8 @@
       "/div.page-inner/div.set-layout/nav.set-nav/div.set-cats/button.set-cat#5": [0, 164, 196, 38, -59, 0],
       "/div.page-inner/div.set-layout/nav.set-nav/div.set-cats/button.set-cat#6": [0, 205, 196, 38, -53, 0],
       "/div.page-inner/div.set-layout/nav.set-nav/div.set-cats/button.set-cat#7": [0, 246, 196, 38, -59, 0],
-      "/div.page-inner/div.set-layout/div.set-panes": [218, 0, 900, 1207],
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane": [0, 2, 900, 1187],
+      "/div.page-inner/div.set-layout/div.set-panes": [218, 0, 900, 1227],
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane": [0, 2, 900, 1207],
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card": [0, 41, 900, 546],
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/h3": [2, 2, 896, 41],
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row": [2, 43, 896, 70],
@@ -9247,9 +9266,9 @@
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#2/div.set-row#4": [2, 245, 896, 71],
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#2/div.set-row#5": [2, 316, 896, 71],
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#2/div.set-row#6": [2, 387, 896, 60],
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3": [0, 1072, 900, 115],
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3": [0, 1072, 900, 135],
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3/h3": [2, 2, 896, 41],
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3/div.set-row": [2, 43, 896, 70]
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3/div.set-row": [2, 43, 896, 90]
      },
      "texts": {
       "/div.page-inner/div.page-head": "设置 全局设置对所有版本生效，可在版本设置中单独覆盖",
@@ -9276,9 +9295,8 @@
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#2/div.set-row#4": "曲目与 MIDI 切换曲目、单曲循环，或把曲谱导出为 MID",
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#2/div.set-row#5": "音效 主页背景里的声音：点方块、生物叫、下雨打雷等。从你装好",
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#2/div.set-row#6": "音效音量 #%",
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3": "微软登录 Azure 应用 Client ID 已内置通过审",
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3/h3": "微软登录",
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3/div.set-row": "Azure 应用 Client ID 已内置通过审核的应用，"
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3/div.set-row": "自定义 Client ID（一般不用填） 启动器已内置通过微"
      },
      "problems": []
     },
@@ -9704,10 +9722,10 @@
       "输入框「搜索设置」"
      ],
      "boxes": {
-      "/div.page-inner": [36, 104, 1118, 719],
+      "/div.page-inner": [36, 104, 1118, 739],
       "/div.page-inner/div.page-head": [0, 6, 1118, 64],
       "/div.page-inner/div.page-head/div": [0, 0, 311, 64],
-      "/div.page-inner/div.set-layout": [0, 92, 1118, 627],
+      "/div.page-inner/div.set-layout": [0, 92, 1118, 647],
       "/div.page-inner/div.set-layout/nav.set-nav": [0, 0, 196, 332],
       "/div.page-inner/div.set-layout/nav.set-nav/input.input": [0, 0, 196, 38],
       "/div.page-inner/div.set-layout/nav.set-nav/div.set-cats": [0, 48, 196, 284],
@@ -9718,16 +9736,16 @@
       "/div.page-inner/div.set-layout/nav.set-nav/div.set-cats/button.set-cat#5": [0, 164, 196, 38, -59, 0],
       "/div.page-inner/div.set-layout/nav.set-nav/div.set-cats/button.set-cat#6": [0, 205, 196, 38, -53, 0],
       "/div.page-inner/div.set-layout/nav.set-nav/div.set-cats/button.set-cat#7": [0, 246, 196, 38, -59, 0],
-      "/div.page-inner/div.set-layout/div.set-panes": [218, 0, 900, 627],
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane": [0, 2, 900, 607],
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card": [0, 41, 900, 566],
+      "/div.page-inner/div.set-layout/div.set-panes": [218, 0, 900, 647],
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane": [0, 2, 900, 627],
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card": [0, 41, 900, 586],
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/h3": [2, 2, 896, 41],
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row": [2, 43, 896, 70],
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#2": [2, 113, 896, 165],
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#3": [2, 279, 896, 71],
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#4": [2, 350, 896, 71],
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#5": [2, 421, 896, 71],
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#6": [2, 493, 896, 71]
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#2": [2, 113, 896, 185],
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#3": [2, 299, 896, 71],
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#4": [2, 370, 896, 71],
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#5": [2, 441, 896, 71],
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#6": [2, 513, 896, 71]
      },
      "texts": {
       "/div.page-inner/div.page-head": "设置 全局设置对所有版本生效，可在版本设置中单独覆盖",
@@ -10374,9 +10392,9 @@
       "/div.modal-head/button.btn": [670, 16, 30, 30, 0, 0],
       "/div.modal-body": [2, 113, 716, 382],
       "/div.modal-body/div.setup": [24, 14, 668, 360],
-      "/div.modal-body/div.setup/button.choice": [0, 36, 668, 98, 0, 0],
+      "/div.modal-body/div.setup/button.choice": [0, 36, 668, 75, 0, 0],
       "/div.modal-body/div.setup/button.choice/span.ch-ico": [16, 16, 36, 36],
-      "/div.modal-body/div.setup/button.choice/span.ch-body": [64, 16, 588, 66],
+      "/div.modal-body/div.setup/button.choice/span.ch-body": [64, 16, 588, 43],
       "/div.modal-foot": [2, 495, 716, 70],
       "/div.modal-foot/button.btn": [24, 14, 61, 36, 0, -1],
       "/div.modal-foot/button.btn#2": [533, 14, 75, 36, 0, -1],
@@ -11949,9 +11967,9 @@
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#2/div.set-row#4": "曲目与 MIDI 切换曲目、单曲循环，或把曲谱导出为 MID",
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#2/div.set-row#5": "音效 主页背景里的声音：点方块、生物叫、下雨打雷等。从你装好",
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#2/div.set-row#6": "音效音量 #%",
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3": "微软登录 Azure 应用 Client ID 已内置通过审",
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3": "微软登录 自定义 Client ID（一般不用填） 启动器已",
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3/h3": "微软登录",
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3/div.set-row": "Azure 应用 Client ID 已内置通过审核的应用，"
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3/div.set-row": "自定义 Client ID（一般不用填） 启动器已内置通过微"
      },
      "problems": []
     },
@@ -13066,9 +13084,9 @@
       "/div.modal-head/button.btn": [682, 10, 26, 26, 0, 0],
       "/div.modal-body": [1, 96, 718, 376],
       "/div.modal-body/div.setup": [18, 10, 682, 360],
-      "/div.modal-body/div.setup/button.choice": [0, 34, 682, 84, 0, 0],
+      "/div.modal-body/div.setup/button.choice": [0, 34, 682, 63, 0, 0],
       "/div.modal-body/div.setup/button.choice/span.ch-ico": [11, 11, 36, 36],
-      "/div.modal-body/div.setup/button.choice/span.ch-body": [57, 11, 614, 62],
+      "/div.modal-body/div.setup/button.choice/span.ch-body": [57, 11, 614, 41],
       "/div.modal-foot": [1, 472, 718, 54],
       "/div.modal-foot/button.btn": [18, 10, 49, 30, 0, 0],
       "/div.modal-foot/button.btn#2": [569, 10, 62, 30, 0, 0],
@@ -13762,6 +13780,7 @@
     },
     "versions": {
      "entries": [
+      "按钮「Current Fab Minecraft # · Fabric # Custom mods F」",
       "按钮「Export data」",
       "按钮「Import from another launcher」",
       "按钮「Import modpack」",
@@ -13773,6 +13792,7 @@
       "按钮「One-click Debug」",
       "按钮「Open mods folder」",
       "按钮「Open versions folder」",
+      "按钮「Plain Minecraft Plain Vanilla Java # is missing 」",
       "按钮「Profile settings」 ×2",
       "按钮「Refresh」",
       "按钮「Saves & Backups」 ×2",
@@ -13886,6 +13906,7 @@
     },
     "download": {
      "entries": [
+      "按钮「Current Fab Minecraft # · Fabric # Custom mods F」",
       "按钮「Export data」",
       "按钮「Import from another launcher」",
       "按钮「Import modpack」",
@@ -13897,6 +13918,7 @@
       "按钮「One-click Debug」",
       "按钮「Open mods folder」",
       "按钮「Open versions folder」",
+      "按钮「Plain Minecraft Plain Vanilla Java # is missing 」",
       "按钮「Profile settings」 ×2",
       "按钮「Refresh」",
       "按钮「Saves & Backups」 ×2",
@@ -14602,10 +14624,10 @@
       "输入框「（没有文字）」 ×2"
      ],
      "boxes": {
-      "/div.page-inner": [36, 56, 886, 1411],
+      "/div.page-inner": [36, 56, 886, 1429],
       "/div.page-inner/div.page-head": [0, 6, 886, 65],
       "/div.page-inner/div.page-head/div": [0, 0, 500, 65],
-      "/div.page-inner/div.set-layout": [0, 93, 886, 1318],
+      "/div.page-inner/div.set-layout": [0, 93, 886, 1337],
       "/div.page-inner/div.set-layout/nav.set-nav": [0, 0, 196, 332],
       "/div.page-inner/div.set-layout/nav.set-nav/input.input": [0, 0, 196, 38],
       "/div.page-inner/div.set-layout/nav.set-nav/div.set-cats": [0, 48, 196, 284],
@@ -14616,8 +14638,8 @@
       "/div.page-inner/div.set-layout/nav.set-nav/div.set-cats/button.set-cat#5": [0, 164, 196, 38, -58.5, 0],
       "/div.page-inner/div.set-layout/nav.set-nav/div.set-cats/button.set-cat#6": [0, 205, 196, 38, -36, 0],
       "/div.page-inner/div.set-layout/nav.set-nav/div.set-cats/button.set-cat#7": [0, 246, 196, 38, -54, 0],
-      "/div.page-inner/div.set-layout/div.set-panes": [218, 0, 668, 1318],
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane": [0, 2, 668, 1298],
+      "/div.page-inner/div.set-layout/div.set-panes": [218, 0, 668, 1337],
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane": [0, 2, 668, 1317],
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card": [0, 39, 668, 603],
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/h3": [1, 1, 666, 40],
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row": [1, 41, 666, 68],
@@ -14635,9 +14657,9 @@
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#2/div.set-row#4": [1, 256, 666, 69],
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#2/div.set-row#5": [1, 325, 666, 106],
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#2/div.set-row#6": [1, 431, 666, 60],
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3": [0, 1170, 668, 128],
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3": [0, 1170, 668, 147],
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3/h3": [1, 1, 666, 40],
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3/div.set-row": [1, 41, 666, 87]
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3/div.set-row": [1, 41, 666, 105]
      },
      "texts": {
       "/div.page-inner/div.page-head": "Settings Global settings apply",
@@ -14665,7 +14687,7 @@
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#2/div.set-row#5": "Sound effects Sounds in the ho",
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#2/div.set-row#6": "Sound effects volume #%",
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3/h3": "Microsoft sign-in",
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3/div.set-row": "Azure app Client ID Verified a"
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card#3/div.set-row": "Custom Client ID (usually not "
      },
      "problems": []
     },
@@ -15078,10 +15100,10 @@
       "输入框「Search settings」"
      ],
      "boxes": {
-      "/div.page-inner": [36, 56, 886, 825],
+      "/div.page-inner": [36, 56, 886, 844],
       "/div.page-inner/div.page-head": [0, 6, 886, 65],
       "/div.page-inner/div.page-head/div": [0, 0, 500, 65],
-      "/div.page-inner/div.set-layout": [0, 93, 886, 732],
+      "/div.page-inner/div.set-layout": [0, 93, 886, 751],
       "/div.page-inner/div.set-layout/nav.set-nav": [0, 0, 196, 332],
       "/div.page-inner/div.set-layout/nav.set-nav/input.input": [0, 0, 196, 38],
       "/div.page-inner/div.set-layout/nav.set-nav/div.set-cats": [0, 48, 196, 284],
@@ -15092,16 +15114,16 @@
       "/div.page-inner/div.set-layout/nav.set-nav/div.set-cats/button.set-cat#5": [0, 164, 196, 38, -58.5, 0],
       "/div.page-inner/div.set-layout/nav.set-nav/div.set-cats/button.set-cat#6": [0, 205, 196, 38, -36, 0],
       "/div.page-inner/div.set-layout/nav.set-nav/div.set-cats/button.set-cat#7": [0, 246, 196, 38, -53.5, 0],
-      "/div.page-inner/div.set-layout/div.set-panes": [218, 0, 668, 732],
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane": [0, 2, 668, 712],
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card": [0, 39, 668, 673],
+      "/div.page-inner/div.set-layout/div.set-panes": [218, 0, 668, 751],
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane": [0, 2, 668, 731],
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card": [0, 39, 668, 692],
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/h3": [1, 1, 666, 40],
       "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row": [1, 41, 666, 68],
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#2": [1, 108, 666, 270],
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#3": [1, 379, 666, 69],
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#4": [1, 447, 666, 88],
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#5": [1, 535, 666, 69],
-      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#6": [1, 604, 666, 69]
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#2": [1, 108, 666, 289],
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#3": [1, 397, 666, 69],
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#4": [1, 466, 666, 88],
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#5": [1, 554, 666, 69],
+      "/div.page-inner/div.set-layout/div.set-panes/section.set-pane/div.card/div.set-row#6": [1, 622, 666, 69]
      },
      "texts": {
       "/div.page-inner/div.page-head": "Settings Global settings apply",
@@ -15738,9 +15760,9 @@
       "/div.modal-head/button.btn": [672, 16, 30, 30, 0, 0],
       "/div.modal-body": [1, 135, 718, 382],
       "/div.modal-body/div.setup": [24, 14, 670, 360],
-      "/div.modal-body/div.setup/button.choice": [0, 35, 670, 93, 0, 0],
+      "/div.modal-body/div.setup/button.choice": [0, 35, 670, 72, 0, 0],
       "/div.modal-body/div.setup/button.choice/span.ch-ico": [15, 15, 36, 36],
-      "/div.modal-body/div.setup/button.choice/span.ch-body": [63, 15, 592, 63],
+      "/div.modal-body/div.setup/button.choice/span.ch-body": [63, 15, 592, 42],
       "/div.modal-foot": [1, 517, 718, 70],
       "/div.modal-foot/button.btn": [24, 14, 72, 36, 0, 0],
       "/div.modal-foot/button.btn#2": [563, 14, 61, 36, 0, 0],

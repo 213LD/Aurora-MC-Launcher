@@ -258,6 +258,11 @@ const SCENARIOS = {
         const got = await tr(src);
         check('9-4', `${src.slice(0, 8)}：句子通顺`, got.includes(want) && !/Runningremote|Installedremote/i.test(got), got);
       }
+      // 换皮肤的提示：「皮肤」前面要有空格，没有名字时是完整的一句（以前是 'sskin、Newskin）
+      for (const [src, name, want] of [['已换上「@」的皮肤', 'Steve', 'Switched to "Steve"\'s skin'], ['已换上新的皮肤（旧版 64×32 已自动转换）', '', 'Switched to the new skin (old 64×32']]) {
+        const got = await marked(src, name);
+        check('skin-toast', `换皮肤的提示：${want.slice(0, 26)}`, got.replace(/[⁨⁩]/g, '').startsWith(want), got);
+      }
       // 1-9 同样的文字不重复写
       const m = await en.ev(`(async () => {
         A.state.tasks.set('w1', { id: 'w1', kind: 'install', status: 'running', title: '安装 测试', detail: '下载文件 1/2', progress: 0.5, meta: {}, files: { done: 1, total: 2, active: 1, failed: 0 }, bytes: { done: 1, total: 2 }, current: [], failures: [], speed: 1000, eta: 3, createdAt: Date.now() });
@@ -659,6 +664,38 @@ const SCENARIOS = {
    * 中文界面：配置、皮肤、世界等名字和英文字典、英文 Mod 重名。
    * 翻译器在中文界面不运行；Mod 中文名对照表（modnames.js）只用在真的 Mod 上，别的名字不能被它改。
    */
+  /** Mod 介绍、整合包说明是别人写的 HTML：只留安全的标签和属性（SVG 里小写的 script 也去掉、链接不带来源、图片留着 alt） */
+  async sanitize(app) {
+    const r = await app.ev(`(() => {
+      const box = document.createElement('div');
+      box.appendChild(A.sanitize('<p onclick="x()">hi<script>window.__s1=1</script></p><svg><script>window.__s2=1</script><style>p{}</style></svg><a href="javascript:alert(1)">bad</a><a href="https://example.com">ok</a><img src="https://example.com/a.png" alt="截图" onerror="x()"><img src="http://example.com/b.png">'));
+      const html = box.innerHTML;
+      const a = [...box.querySelectorAll('a')];
+      return { html, noScript: !/script|window\\.__s|p\\{\\}/i.test(html), noHandlers: !/onclick|onerror/i.test(html), bad: a.filter((x) => x.getAttribute('href')).map((x) => x.getAttribute('href')), rel: a.filter((x) => x.getAttribute('href')).every((x) => x.rel === 'noopener noreferrer'), alt: (box.querySelector('img[src^="https"]') || {}).alt, httpImg: [...box.querySelectorAll('img')].filter((x) => /^http:/.test(x.getAttribute('src') || '')).length };
+    })()`);
+    check('sanitize', '别人写的 HTML：script（含 SVG 里小写的）、style、事件属性都去掉，代码不留成文字', r.noScript && r.noHandlers, r.html);
+    check('sanitize', '链接只留 http(s)、带 noopener noreferrer；图片只留 https、alt 留着', JSON.stringify(r.bad) === '["https://example.com"]' && r.rel && r.alt === '截图' && r.httpImg === 0, r);
+  },
+
+  /** 键盘：没有 href 的链接、当按钮用的卡片 Tab 走得到，回车就是点；自己处理了按键的元素不会被点两次 */
+  async keyboard(app) {
+    const r = await app.ev(`(() => {
+      const { h } = A;
+      let a = 0; let b = 0; let own = 0; let ownClick = 0;
+      const link = h('a', { onclick: () => { a++; } }, '去设置');
+      const card = h('div', { tabindex: '0', role: 'button', onclick: () => { b++; } }, '卡片');
+      const self = h('div', { tabindex: 0, role: 'button', onclick: () => { ownClick++; }, onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); own++; } } }, '自己处理');
+      document.body.append(link, card, self);
+      const key = (el, k) => el.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }));
+      key(link, 'Enter'); key(link, ' '); key(card, 'Enter'); key(card, ' '); key(self, 'Enter');
+      const out = { tab: link.getAttribute('tabindex'), role: link.getAttribute('role'), a, b, own, ownClick };
+      link.remove(); card.remove(); self.remove();
+      return out;
+    })()`);
+    check('keyboard', '没有 href 的链接能用 Tab 走到（tabindex 0、role link），回车点一下，空格不点', r.tab === '0' && r.role === 'link' && r.a === 1, r);
+    check('keyboard', '当按钮用的卡片：回车、空格都是点；自己处理了按键的不会再被点一次', r.b === 2 && r.own === 1 && r.ownClick === 0, r);
+  },
+
   async 'zh-mod-names'() {
     const MODS = ['Sodium', 'Create', 'Just Enough Items', 'Lithium', 'Settings', 'Launch'];
     const png = Buffer.alloc(33); Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52]).copy(png); png.writeUInt32BE(64, 16); png.writeUInt32BE(64, 20);
@@ -1927,5 +1964,5 @@ const SCENARIOS = {
     }
   } finally { await app.stop(); }
   if (process.env.AURORA_REGRESS_OUT) fs.appendFileSync(process.env.AURORA_REGRESS_OUT, `${results.map((r) => JSON.stringify(r)).join('\n')}\n`, 'utf8');
-  process.exit(0);
+  process.exit(results.some((r) => !r.ok) ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });

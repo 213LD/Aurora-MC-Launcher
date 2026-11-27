@@ -5,6 +5,7 @@
  */
 const { postForm, postJson, getJsonAuth } = require('../../engine/net');
 const { sleep, abortError } = require('../../engine/util');
+const { toHttps } = require('../../../shared/weburl');
 
 const MS_BASE = 'https://login.microsoftonline.com/consumers/oauth2/v2.0';
 const SCOPE = 'XboxLive.signin offline_access';
@@ -43,11 +44,22 @@ async function startDeviceCode(clientId) {
   };
 }
 
+/** 等 ms 毫秒；中途取消了马上返回（不用等完这一轮的间隔） */
+function wait(ms, signal) {
+  if (!signal) return sleep(ms);
+  return new Promise((resolve) => {
+    if (signal.aborted) { resolve(); return; }
+    const t = setTimeout(() => { signal.removeEventListener('abort', stop); resolve(); }, ms);
+    const stop = () => { clearTimeout(t); resolve(); };
+    signal.addEventListener('abort', stop, { once: true });
+  });
+}
+
 async function pollDeviceCode(clientId, dc, signal) {
   let interval = Math.max(1, dc.interval) * 1000;
   const deadline = Date.now() + dc.expiresIn * 1000;
   while (Date.now() < deadline) {
-    await sleep(interval);
+    await wait(interval, signal);
     if (signal && signal.aborted) throw abortError();
     const r = await postForm(`${MS_BASE}/token`, {
       grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
@@ -74,12 +86,18 @@ async function refreshMsToken(clientId, refreshToken) {
     scope: SCOPE,
   });
   if (!r.ok || !r.data || !r.data.access_token) {
-    const e = new Error(`刷新微软登录失败：${msError(r.data, `HTTP ${r.status}`)}，请重新登录`);
-    e.needRelogin = true;
-    throw e;
+    // 只有微软明确说这份登录不能用了，才要玩家重新登录。服务器出错（5xx）、太频繁（429）是暂时的，过一会儿再试就好
+    if (RELOGIN_ERRORS.has(r.data && r.data.error)) {
+      const e = new Error(`刷新微软登录失败：${msError(r.data, `HTTP ${r.status}`)}，请重新登录`);
+      e.needRelogin = true;
+      throw e;
+    }
+    throw new Error(`微软登录服务暂时连不上（${msError(r.data, `HTTP ${r.status}`)}），稍后再试`);
   }
   return r.data;
 }
+// OAuth 刷新时这几种错误是登录本身失效了（令牌过期或被撤销、要重新授权、应用不对）
+const RELOGIN_ERRORS = new Set(['invalid_grant', 'interaction_required', 'consent_required', 'login_required', 'unauthorized_client', 'invalid_client']);
 
 function decodeJwt(token) {
   try {
@@ -88,13 +106,14 @@ function decodeJwt(token) {
   } catch { return {}; }
 }
 
-async function xboxChain(msAccessToken, onStep = () => {}) {
+async function xboxChain(msAccessToken, onStep = () => {}, signal) {
+  const opts = { signal };
   onStep('正在验证 Xbox Live…');
   const xbl = await postJson('https://user.auth.xboxlive.com/user/authenticate', {
     Properties: { AuthMethod: 'RPS', SiteName: 'user.auth.xboxlive.com', RpsTicket: `d=${msAccessToken}` },
     RelyingParty: 'http://auth.xboxlive.com',
     TokenType: 'JWT',
-  });
+  }, opts);
   if (!xbl.ok || !xbl.data || !xbl.data.Token) throw new Error(`Xbox Live 验证失败（HTTP ${xbl.status}）`);
   const uhs = xbl.data.DisplayClaims && xbl.data.DisplayClaims.xui && xbl.data.DisplayClaims.xui[0] && xbl.data.DisplayClaims.xui[0].uhs;
   if (!uhs) throw new Error(`Xbox Live 验证失败（HTTP ${xbl.status}）`);
@@ -104,7 +123,7 @@ async function xboxChain(msAccessToken, onStep = () => {}) {
     Properties: { SandboxId: 'RETAIL', UserTokens: [xbl.data.Token] },
     RelyingParty: 'rp://api.minecraftservices.com/',
     TokenType: 'JWT',
-  });
+  }, opts);
   if (!xsts.ok || !xsts.data || !xsts.data.Token) {
     const code = xsts.data && xsts.data.XErr;
     throw new Error(XSTS_ERRORS[code] || `XSTS 授权失败（${code || `HTTP ${xsts.status}`}）`);
@@ -113,7 +132,7 @@ async function xboxChain(msAccessToken, onStep = () => {}) {
   onStep('正在登录 Minecraft 服务…');
   const mc = await postJson('https://api.minecraftservices.com/authentication/login_with_xbox', {
     identityToken: `XBL3.0 x=${uhs};${xsts.data.Token}`,
-  });
+  }, opts);
   if (!mc.ok || !mc.data || !mc.data.access_token) {
     const raw = JSON.stringify(mc.data || {});
     if (mc.status === 403 || /Invalid app registration/i.test(raw)) {
@@ -130,11 +149,11 @@ async function xboxChain(msAccessToken, onStep = () => {}) {
   };
 }
 
-const httpsUrl = (u) => (typeof u === 'string' ? u.replace(/^http:\/\/(?!127\.0\.0\.1(?::|\/|$)|localhost(?::|\/|$))/i, 'https://') : '');
+const httpsUrl = (u) => (typeof u === 'string' ? toHttps(u) : '');
 
-async function fetchProfile(mcToken, onStep = () => {}) {
+async function fetchProfile(mcToken, onStep = () => {}, signal) {
   onStep('正在获取游戏档案…');
-  const r = await getJsonAuth('https://api.minecraftservices.com/minecraft/profile', mcToken);
+  const r = await getJsonAuth('https://api.minecraftservices.com/minecraft/profile', mcToken, { signal });
   if (r.status === 404) throw new Error('该账户没有 Minecraft: Java 版，或尚未设置角色名（可在 minecraft.net 设置）');
   if (!r.ok || !r.data || !r.data.id) throw new Error(`获取游戏档案失败（HTTP ${r.status}）`);
   const skin = (r.data.skins || []).find((s) => s.state === 'ACTIVE') || (r.data.skins || [])[0];
@@ -147,10 +166,11 @@ async function fetchProfile(mcToken, onStep = () => {}) {
   };
 }
 
-/** 完整登录：微软令牌 → Minecraft 档案 */
-async function loginWithMsToken(ms, onStep) {
-  const mc = await xboxChain(ms.access_token, onStep);
-  const profile = await fetchProfile(mc.accessToken, onStep);
+/** 完整登录：微软令牌 → Minecraft 档案。signal：玩家点了取消，后面几步也不再发 */
+async function loginWithMsToken(ms, onStep, signal) {
+  const mc = await xboxChain(ms.access_token, onStep, signal);
+  const profile = await fetchProfile(mc.accessToken, onStep, signal);
+  if (signal && signal.aborted) throw abortError();
   return {
     msRefreshToken: ms.refresh_token,
     mcAccessToken: mc.accessToken,
